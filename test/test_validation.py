@@ -110,10 +110,11 @@ class TestValidateNotifyOn(unittest.TestCase):
         errors = validate_request(data)
         self.assertTrue(any("notify_on" in e for e in errors))
 
-    def test_empty_notify_on_is_valid(self):
+    def test_empty_notify_on_is_rejected(self):
+        # An explicit [] builds a connector that never fires; omit the key for the default.
         data = _valid()
         data["notify_on"] = []
-        self.assertEqual(validate_request(data), [])
+        self.assertTrue(any("notify_on" in e for e in validate_request(data)))
 
 
 class TestValidateSeverity(unittest.TestCase):
@@ -425,7 +426,7 @@ class TestValidateNumericIdFields(unittest.TestCase):
 
     def test_string_value_is_rejected(self):
         data = _valid()
-        data["include"] = {"monitoring_point_ids": ["sv-trident"]}
+        data["include"] = {"monitoring_point_ids": ["mp-site-a"]}
         errors = validate_request(data)
         self.assertEqual(len(errors), 1)
         self.assertIn("monitoring_point_ids", errors[0])
@@ -482,6 +483,57 @@ class TestValidateMultipleErrors(unittest.TestCase):
         self.assertGreaterEqual(len(errors), 2)
         self.assertTrue(any("connector.name" in e for e in errors))
         self.assertTrue(any("webhook.url" in e for e in errors))
+
+
+class TestReviewHardening(unittest.TestCase):
+    """CRLF is checked on the raw value (not the stripped one), header names are RFC 7230 tokens,
+    and nonsensical notify_on / connector.id values are rejected."""
+
+    def _errs(self, mutate):
+        data = _valid()
+        mutate(data)
+        return validate_request(data)
+
+    def test_trailing_crlf_on_name_and_webhook_url_is_rejected(self):
+        self.assertTrue(any("connector.name" in e for e in self._errs(lambda d: d["connector"].update(name="n\r\n"))))
+        self.assertTrue(any("webhook.url" in e for e in self._errs(lambda d: d["webhook"].update(url="https://h.example.com\r\n"))))
+
+    def test_del_character_is_a_control_character(self):
+        self.assertTrue(any("connector.name" in e for e in self._errs(lambda d: d["connector"].update(name="a\x7fb"))))
+
+    def test_header_name_must_be_an_rfc7230_token(self):
+        for bad in ("X(", "X@Y", "Xé", "X\x7f"):
+            with self.subTest(bad):
+                errs = self._errs(lambda d: d["webhook"].update(headers=[{"key": bad, "value": "v"}]))
+                self.assertTrue(any("headers[0].key" in e for e in errs), errs)
+        self.assertEqual(self._errs(lambda d: d["webhook"].update(headers=[{"key": "X-Api_Key.1", "value": "v"}])), [])
+
+    def test_header_value_must_be_a_string_and_present(self):
+        for bad in ({"key": "X-A", "value": 5}, {"key": "X-A"}):
+            with self.subTest(bad):
+                errs = self._errs(lambda d: d["webhook"].update(headers=[bad]))
+                self.assertTrue(any("headers[0].value" in e for e in errs), errs)
+
+    def test_empty_notify_on_is_rejected_but_absent_is_fine(self):
+        self.assertTrue(any("notify_on" in e for e in self._errs(lambda d: d.update(notify_on=[]))))
+        self.assertEqual(validate_request(_valid()), [])
+
+    def test_connector_id_must_be_a_positive_integer(self):
+        for bad in (-5, 0, True, 1.5, {}, [1]):
+            with self.subTest(bad):
+                errs = self._errs(lambda d: d["connector"].update(id=bad))
+                self.assertTrue(any("connector.id" in e for e in errs), errs)
+        self.assertEqual(self._errs(lambda d: d["connector"].update(id=123)), [])
+        self.assertEqual(self._errs(lambda d: d["connector"].update(id=None)), [])
+
+    def test_non_string_scalars_are_errors_not_crashes(self):
+        for mutate in (lambda d: d["connector"].update(name=5),
+                       lambda d: d["webhook"].update(url=5),
+                       lambda d: d["webhook"].update(auth={"type": "BASIC", "username": 1, "password": "p"}),
+                       lambda d: d["webhook"].update(auth={"type": 5})):
+            with self.subTest():
+                self.assertIsInstance(self._errs(mutate), list)
+                self.assertTrue(self._errs(mutate))
 
 
 if __name__ == "__main__":

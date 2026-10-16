@@ -5,7 +5,7 @@ import urllib.error
 from unittest.mock import MagicMock, patch
 
 from generate_connector import AppNetaAPIError, AppNetaAuthError, AppNetaNetworkError, AppNetaClient, build_payload
-from client import _validate_base_url
+from client import _validate_base_url, NoRedirectHandler
 from fixtures import MONITORING_POINTS, POLICIES
 
 
@@ -249,7 +249,7 @@ class TestBaseURLValidation(unittest.TestCase):
         # On-prem AppNeta deployments are commonly reached via a private IP
         # with no DNS entry. base_url is operator-supplied trusted config,
         # not third-party input, so IP literals are intentionally allowed.
-        _validate_base_url("https://10.0.0.1")
+        _validate_base_url("https://198.51.100.1")
 
     def test_allows_ipv6_literal(self):
         _validate_base_url("https://[::1]")
@@ -258,6 +258,21 @@ class TestBaseURLValidation(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             _validate_base_url("https://nis.example.com/some/path")
         self.assertIn("path", str(ctx.exception))
+
+    def test_rejects_query_fragment_and_userinfo(self):
+        for bad in ("https://h.example.com?x=", "https://h.example.com/?x=", "https://h.example.com#f",
+                    "https://user:pw@h.example.com", "https://user@h.example.com"):
+            with self.subTest(bad), self.assertRaises(ValueError):
+                _validate_base_url(bad)
+
+    def test_rejects_bad_port(self):
+        for bad in ("https://h.example.com:0", "https://h.example.com:99999", "https://h.example.com:abc"):
+            with self.subTest(bad), self.assertRaises(ValueError):
+                _validate_base_url(bad)
+
+    def test_rejects_control_characters(self):
+        with self.assertRaises(ValueError):
+            _validate_base_url("https://h.example.com\r\nX: y")
 
     def test_rejects_empty_url(self):
         with self.assertRaises(ValueError):
@@ -361,6 +376,13 @@ class TestBuildPayloadIntegration(unittest.TestCase):
         payload = build_payload(config, client, errors)
         self.assertEqual(len(errors), 1)
         self.assertNotIn("include", payload)
+
+    def test_numeric_mp_name_is_checked_against_live_catalog(self):
+        client = self._mock_client(points=MONITORING_POINTS)
+        errors = []
+        payload = build_payload(self._base_config(include={"monitoring_point_names": ["100", "999999"]}), client, errors)
+        self.assertEqual(payload["include"]["monitoringPointId"], [100])
+        self.assertEqual([e["value"] for e in errors], ["999999"])
 
     def test_glob_mp_name_passed_through_as_name_not_id(self):
         client = self._mock_client(points=MONITORING_POINTS)
@@ -498,3 +520,67 @@ class TestBuildPayloadIntegration(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ── redirects must never be followed (the API key rides on every request) ────────
+
+class TestNoRedirect(unittest.TestCase):
+
+    def test_redirect_is_refused_and_key_not_forwarded(self):
+        import http.server, threading, urllib.request
+        seen = []
+
+        class Target(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                seen.append(self.headers.get("Authorization"))
+                self.send_response(200); self.end_headers(); self.wfile.write(b"{}")
+            def log_message(self, *a): pass
+
+        target = http.server.HTTPServer(("127.0.0.1", 0), Target)
+
+        class Redirector(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(302)
+                self.send_header("Location", f"http://127.0.0.1:{target.server_port}/x")
+                self.end_headers()
+            def log_message(self, *a): pass
+
+        origin = http.server.HTTPServer(("127.0.0.1", 0), Redirector)
+        for srv in (target, origin):
+            threading.Thread(target=srv.serve_forever, daemon=True).start()
+            self.addCleanup(srv.server_close)
+            self.addCleanup(srv.shutdown)
+        opener = urllib.request.build_opener(NoRedirectHandler)
+        req = urllib.request.Request(f"http://127.0.0.1:{origin.server_port}/", headers={"Authorization": "Token SEKRET"})
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            opener.open(req, timeout=5)
+        self.assertEqual(ctx.exception.code, 302)
+        self.assertEqual(seen, [])
+
+    def test_client_uses_the_no_redirect_opener_for_urlopen(self):
+        import urllib.request
+        handlers = [type(h) for h in urllib.request._opener.handlers] if urllib.request._opener else []
+        self.assertIn(NoRedirectHandler, handlers)
+
+
+class TestUpstreamOddities(unittest.TestCase):
+    """Garbage from upstream must surface as AppNeta*Error (a clean 4xx/5xx), never escape raw."""
+
+    def _fail(self, **kw):
+        c = _client()
+        with patch("urllib.request.urlopen", **kw), self.assertRaises(AppNetaAPIError):
+            c._get("/v4/organization")
+
+    def test_non_json_200_body(self):
+        resp = MagicMock(); resp.read.return_value = b"<html>not json</html>"
+        resp.__enter__ = lambda s: s; resp.__exit__ = MagicMock(return_value=False)
+        self._fail(return_value=resp)
+
+    def test_timeout_while_reading_body(self):
+        resp = MagicMock(); resp.read.side_effect = TimeoutError("slow")
+        resp.__enter__ = lambda s: s; resp.__exit__ = MagicMock(return_value=False)
+        self._fail(return_value=resp)
+
+    def test_invalid_url_characters(self):
+        import http.client
+        self._fail(side_effect=http.client.InvalidURL("bad"))

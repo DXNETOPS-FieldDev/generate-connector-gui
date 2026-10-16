@@ -16,6 +16,7 @@ from flask import Flask, redirect, url_for
 from connector_app import connector_bp
 
 app = Flask(__name__, template_folder="templates")
+app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024  # also bounds chunked bodies that carry no Content-Length
 app.register_blueprint(connector_bp)
 
 

@@ -20,19 +20,19 @@ Functionally equivalent to `generate-connector-cli` but driven by a web form: en
 
 ```bash
 docker build -t connector-gui .
-docker run -d --name connector-gui -p 8443:8080 connector-gui
+docker run -d --name connector-gui -p 127.0.0.1:8080:8080 connector-gui
 ```
 
-Open `http://localhost:8443` in a browser.
+Open `http://localhost:8080` in a browser.
 
 ### Podman
 
 ```bash
 podman build -t connector-gui .
-podman run -d --name connector-gui -p 8443:8080 connector-gui
+podman run -d --name connector-gui -p 127.0.0.1:8080:8080 connector-gui
 ```
 
-Open `http://localhost:8443` in a browser.
+Open `http://localhost:8080` in a browser.
 
 ---
 
@@ -145,7 +145,7 @@ Supported wildcards:
 |---|---|---|---|
 | `*` | Any sequence of characters | `ac*` | `acme-m50`, `ac-lab-01` |
 | `**` | Same as `*` for flat strings (no path separators in MP names) | `sw**` | Same as `ac*` |
-| `?` | Exactly one character | `?v-trident` | `sv-trident`, `av-trident` |
+| `?` | Exactly one character | `?p-site-a` | `mp-site-a`, `ap-site-a` |
 | `!` | **No effect** — does not exclude anything, does not exclude anything | `!acme-m50` | Nothing — passes through unchanged, as if `!acme-m50` weren't in the list at all |
 | `+` | One or more characters (not reliably supported; prefer `*`) | `ac+` | Intended: names starting with ac |
 
@@ -163,7 +163,7 @@ For **Targets**, glob patterns match against the target hostname or URL:
 
 ```
 *.example.com       → any subdomain of example.com
-10.0.*              → any host in the 10.0.0.0/8 range (prefix match)
+192.0.2.*           → any host whose address starts with 192.0.2. (prefix match)
 ```
 
 Glob patterns are passed to the AppNeta API as-is — the connector filter engine interprets them. The GUI does not expand or validate glob syntax.
@@ -217,14 +217,14 @@ The connector delivers alarm payloads to any HTTPS endpoint that accepts POST. C
 
 ## Deployment Notes
 
-The container runs gunicorn with 2 workers on port 8080. The host port (`-p 8443:8080` in the examples above) can be changed to any available port.
+The container runs gunicorn with 2 workers on port 8080. The examples publish the port on `127.0.0.1` only. The app speaks plain HTTP and handles AppNeta API keys and webhook passwords, so do not publish it on other interfaces (`-p 8080:8080`) unless a reverse proxy in front of it terminates TLS and restricts who can reach it. The host port can be changed to any available port.
 
 For persistent deployment behind a reverse proxy or with iptables DNAT, ensure the container is started with `--restart unless-stopped` (Docker) or a systemd unit (Podman):
 
 ### Docker (persistent)
 
 ```bash
-docker run -d --name connector-gui --restart unless-stopped -p 8443:8080 connector-gui
+docker run -d --name connector-gui --restart unless-stopped -p 127.0.0.1:8080:8080 connector-gui
 ```
 
 ### Podman (persistent via systemd)

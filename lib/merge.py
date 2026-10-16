@@ -3,6 +3,8 @@
 import json
 from typing import Any
 
+from payload import _remove_contradictions
+
 
 def _diff_field(path: str, current: Any, proposed: Any, lines: list[str]) -> None:
     """Recursively collect human-readable diff lines for changed fields."""
@@ -58,7 +60,7 @@ def resolve_connector_mode(
     return "PUT", int(explicit_id), existing
 
 
-def merge_with_existing(payload: dict, existing: dict) -> dict:
+def merge_with_existing(payload: dict, existing: dict, errors: list | None = None, org_name: str = "") -> dict:
     """Merge a generated payload with the existing connector for UPDATE (PUT) mode.
 
     Semantics: fields present in the generated payload override the existing
@@ -70,10 +72,16 @@ def merge_with_existing(payload: dict, existing: dict) -> dict:
 
     Applied to:
     - include/exclude filter blocks — merged field-by-field
-    - connectors list — merged by index; new-payload fields override existing.
-      'id' is preserved from the existing sub-connector: the API rejects
-      a PUT whose sub-connector entry is missing 'id' (400 "Connector ID is
-      required for update operations").
+    - connectors list — matched by index. Only 'id' is carried over from the
+      existing sub-connector (the API rejects a PUT whose entry is missing 'id':
+      400 "Connector ID is required for update operations"). Everything else comes
+      from the generated entry, so dropping auth or headers actually drops them
+      and masked placeholders ("********") are never written back. If the existing
+      entry bypassed TLS verification, ignoreSSLErrors is sent explicitly as false
+      unless the generated entry sets it.
+    - include/exclude contradictions the merge creates (e.g. the existing include
+      holds a value the new exclude now names) are resolved exclude-wins and
+      appended to `errors` when given.
     - description — preserved from existing when absent from payload
     """
     merged = dict(payload)
@@ -92,11 +100,23 @@ def merge_with_existing(payload: dict, existing: dict) -> dict:
         merged_conns = []
         for i, new_conn in enumerate(new_conns):
             if i < len(existing_conns):
-                mc = {**existing_conns[i], **new_conn}
+                mc = dict(new_conn)
+                if "id" in existing_conns[i]:
+                    mc.setdefault("id", existing_conns[i]["id"])
+                if existing_conns[i].get("ignoreSSLErrors"):
+                    mc.setdefault("ignoreSSLErrors", False)
             else:
                 mc = dict(new_conn)
             merged_conns.append(mc)
         merged["connectors"] = merged_conns
+
+    if merged.get("include") and merged.get("exclude"):
+        _remove_contradictions(merged["include"], merged["exclude"],
+                               errors if errors is not None else [], org_name)
+        if not merged["include"]:
+            del merged["include"]
+        if not merged["exclude"]:
+            del merged["exclude"]
 
     if "description" not in merged and existing.get("description"):
         merged["description"] = existing["description"]

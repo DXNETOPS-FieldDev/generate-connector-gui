@@ -169,6 +169,36 @@ class TestMergeWithExisting(unittest.TestCase):
         merged = gc.merge_with_existing(payload, existing)
         self.assertEqual(merged["connectors"][0]["id"], 99999)
 
+    # ── regressions: UPDATE must be able to drop auth / headers / SSL bypass ──
+
+    _OLD_SUB = {"id": 7, "type": "WEBHOOK", "url": "https://old.example.com",
+                "auth": {"type": "BASIC", "username": "u", "password": "********"},
+                "headers": [{"key": "X-Secret", "value": "********"}],
+                "ignoreSSLErrors": True}
+
+    def test_subconnector_carries_only_id_from_existing(self):
+        existing = {**self.EXISTING, "connectors": [dict(self._OLD_SUB)]}
+        payload = {"name": "X", "connectors": [{"type": "WEBHOOK", "url": "https://new.example.com"}]}
+        sub = gc.merge_with_existing(payload, existing)["connectors"][0]
+        self.assertEqual(sub["id"], 7)
+        self.assertNotIn("auth", sub)
+        self.assertNotIn("headers", sub)
+
+    def test_ssl_verification_can_be_turned_back_on(self):
+        existing = {**self.EXISTING, "connectors": [dict(self._OLD_SUB)]}
+        payload = {"name": "X", "connectors": [{"type": "WEBHOOK", "url": "https://new.example.com"}]}
+        sub = gc.merge_with_existing(payload, existing)["connectors"][0]
+        self.assertIs(sub["ignoreSSLErrors"], False)
+
+    def test_contradiction_created_by_merge_is_resolved_and_reported(self):
+        # existing include has CRITICAL; the user now excludes CRITICAL
+        payload = {"name": "X", "exclude": {"severity": ["CRITICAL"]}}
+        errors = []
+        merged = gc.merge_with_existing(payload, self.EXISTING, errors=errors, org_name="Acme")
+        self.assertNotIn("severity", merged["include"])
+        self.assertEqual(merged["exclude"]["severity"], ["CRITICAL"])
+        self.assertTrue(any(e.get("type") == "contradiction" for e in errors))
+
 
 class TestDiffConnector(unittest.TestCase):
 

@@ -1,5 +1,6 @@
 """AppNeta API HTTP client (stdlib urllib only — no external dependencies)."""
 
+import http.client
 import json
 import logging
 import urllib.error
@@ -9,6 +10,17 @@ from typing import Any
 
 
 log = logging.getLogger(__name__)
+
+
+class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Refuse every redirect. AppNeta's API never redirects, and following one would
+    forward the Authorization header (the API key) to whatever host the response names."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+urllib.request.install_opener(urllib.request.build_opener(NoRedirectHandler))
 
 
 class AppNetaAPIError(Exception):
@@ -31,17 +43,30 @@ def _validate_base_url(url: str) -> None:
     https://nis.example.com:8443.
 
     IP-literal hosts (e.g. https://192.0.2.10) are allowed deliberately:
-    base_url is operator-supplied trusted config, not third-party input, and
     on-prem AppNeta deployments are commonly reached via a private IP with no
-    DNS entry at all.
+    DNS entry at all. In the web app base_url arrives in the request body, so it
+    is treated as untrusted: no credentials, query, fragment or control characters,
+    and redirects are refused (see NoRedirectHandler).
     """
+    if any(ord(c) < 0x21 or ord(c) == 0x7F for c in url):
+        raise ValueError("base_url must not contain whitespace or control characters")
     parsed = urllib.parse.urlparse(url)
     if parsed.scheme != "https":
         raise ValueError("base_url must use https://")
     if not parsed.hostname:
         raise ValueError("base_url must include a hostname")
+    if "@" in parsed.netloc:
+        raise ValueError("base_url must not include credentials")
     if parsed.path.rstrip("/"):
         raise ValueError("base_url must not include a path component")
+    if parsed.query or parsed.fragment or "?" in url or "#" in url:
+        raise ValueError("base_url must not include a query or fragment")
+    try:
+        port = parsed.port
+    except ValueError:
+        raise ValueError("base_url has an invalid port")
+    if port is not None and not 1 <= port <= 65535:
+        raise ValueError("base_url has an invalid port")
 
 
 class AppNetaClient:
@@ -105,6 +130,13 @@ class AppNetaClient:
             err_body = e.read().decode(errors="replace")
             log.warning("AppNeta API HTTP %d: %s — %s", e.code, url, err_body[:200])
             raise AppNetaAPIError(f"HTTP {e.code} error from AppNeta API.")
+        except (ValueError, http.client.HTTPException) as e:
+            # Non-JSON 200 body, or control characters that http.client refuses to send.
+            log.warning("AppNeta API unusable response: %s — %s", url, type(e).__name__)
+            raise AppNetaAPIError("Unexpected response from AppNeta API.")
+        except TimeoutError:
+            log.warning("AppNeta API timeout: %s", url)
+            raise AppNetaNetworkError("Request timed out reaching AppNeta server.")
         except urllib.error.URLError as e:
             if isinstance(e.reason, TimeoutError):
                 log.warning("AppNeta API timeout: %s", url)

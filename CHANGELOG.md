@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.1.1
+
+Security hardening and UPDATE-mode fixes.
+
+- The server no longer follows redirects, and `base_url` must be a plain `https://host[:port]`
+  (no credentials, query or fragment), so the API key is only ever sent to the host you entered.
+- API endpoints accept same-origin `application/json` requests only, limit request size, and send
+  `Content-Security-Policy`, `X-Content-Type-Options` and `Cache-Control: no-store` headers.
+- UPDATE mode now removes authentication and headers you cleared, can turn TLS verification back on,
+  resolves include/exclude conflicts created by the merge, and shows a diff of what is actually sent.
+  A warning appears when the existing connector cannot be read.
+- Stricter input validation: header names follow RFC 7230, CRLF is rejected in raw values, and
+  malformed JSON types return a clear error instead of a server error.
+- Numeric monitoring point entries are checked against your organization's monitoring points.
+- The documented `docker run` and `docker-compose.yml` publish the port on `127.0.0.1` only.
+
 ## v0.1.0
 
 Initial release.

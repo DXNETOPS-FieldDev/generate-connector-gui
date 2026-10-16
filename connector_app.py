@@ -1,5 +1,8 @@
 """Generate Alarm Connector tool — Flask Blueprint."""
 
+import urllib.parse
+
+from werkzeug.exceptions import HTTPException
 from flask import Blueprint, current_app, jsonify, render_template, request
 
 from generate_connector import (
@@ -75,6 +78,72 @@ def _coerce_connector_id(data: dict) -> None:
     data["connector"] = connector
 
 
+MAX_BODY_BYTES = 1024 * 1024
+
+_CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'self'; "
+        "frame-ancestors 'none'")
+
+
+class _BadField(ValueError):
+    """A request field has the wrong JSON type."""
+
+
+def _text(data: dict, key: str) -> str:
+    """data[key] as a stripped string; missing/null -> ''. Any other type is a 400."""
+    val = data.get(key)
+    if val is None:
+        return ""
+    if not isinstance(val, str):
+        raise _BadField(f"{key} must be a string.")
+    return val.strip()
+
+
+@connector_bp.errorhandler(_BadField)
+def _bad_field(exc):
+    return jsonify({"error": str(exc)}), 400
+
+
+@connector_bp.errorhandler(Exception)
+def _unexpected(exc):
+    if isinstance(exc, HTTPException):
+        return jsonify({"error": exc.description}), exc.code
+    current_app.logger.exception("unhandled error in %s", request.path)
+    return jsonify({"error": "Internal error."}), 500
+
+
+@connector_bp.after_request
+def _security_headers(resp):
+    resp.headers.setdefault("Content-Security-Policy", _CSP)
+    resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+    if request.path.startswith("/api/"):
+        resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
+@connector_bp.before_request
+def _guard_post_requests():
+    """Block cross-origin and non-JSON POSTs. A hostile page can fire a text/plain POST
+    without a CORS preflight; with force-parsed bodies that would drive these endpoints
+    (and the key-carrying upstream calls) from the user's browser."""
+    if request.method != "POST":
+        return None
+    origin = request.headers.get("Origin")
+    if origin and urllib.parse.urlparse(origin).netloc != request.host:
+        return jsonify({"error": "Cross-origin requests are not allowed."}), 403
+    if not request.is_json:
+        return jsonify({"error": "Content-Type must be application/json."}), 415
+    if (request.content_length or 0) > MAX_BODY_BYTES:
+        return jsonify({"error": "Request body too large."}), 413
+    return None
+
+
+def _json_object():
+    """The request body as a dict, or None when it is not valid JSON or not an object."""
+    data = request.get_json(silent=True)
+    return data if isinstance(data, dict) else None
+
+
 @connector_bp.get("/connector")
 def index():
     return render_template("connector.html")
@@ -82,13 +151,13 @@ def index():
 
 @connector_bp.post("/api/connector/generate")
 def api_connector_generate():
-    data = request.get_json(force=True, silent=True)
+    data = _json_object()
     if data is None:
-        return jsonify({"error": "Request body must be valid JSON."}), 400
+        return jsonify({"error": "Request body must be a valid JSON object."}), 400
 
-    api_key  = (data.get("api_key")  or "").strip()
-    base_url = (data.get("base_url") or "").strip()
-    org_spec = (data.get("org")      or "").strip()
+    api_key  = _text(data, "api_key")
+    base_url = _text(data, "base_url")
+    org_spec = _text(data, "org")
 
     if not base_url:
         return jsonify({"error": "Base URL is required."}), 400
@@ -100,9 +169,14 @@ def api_connector_generate():
         return jsonify({"error": "API key is required."}), 400
     if "\r" in api_key or "\n" in api_key:
         return jsonify({"error": "API key must not contain line breaks."}), 400
-    if not (data.get("connector") or {}).get("name", "").strip():
+    for section in ("connector", "webhook", "include", "exclude"):
+        if data.get(section) is not None and not isinstance(data[section], dict):
+            return jsonify({"error": f"{section} must be an object."}), 400
+    cname = (data.get("connector") or {}).get("name")
+    if not (isinstance(cname, str) and cname.strip()):
         return jsonify({"error": "Connector name is required."}), 400
-    if not (data.get("webhook") or {}).get("url", "").strip():
+    wurl = (data.get("webhook") or {}).get("url")
+    if not (isinstance(wurl, str) and wurl.strip()):
         return jsonify({"error": "Webhook URL is required."}), 400
 
     _coerce_connector_id(data)
@@ -159,8 +233,14 @@ def api_connector_generate():
             if org_mode == "PUT":
                 payload["id"] = connector_id
                 if existing:
+                    payload = merge_with_existing(payload, existing, org_errors, org["name"])
                     diff_lines = diff_connector(existing, payload)
-                    payload = merge_with_existing(payload, existing)
+                else:
+                    org_errors.append(
+                        f"Existing connector {connector_id} could not be read in org '{org['name']}' "
+                        "(not found, in another org, or the key lacks read access) — "
+                        "the PUT payload is NOT merged and may be rejected."
+                    )
         except AppNetaNetworkError as exc:
             current_app.logger.warning("generate-connector: network error building payload: %s", exc)
             return jsonify({"error": str(exc)}), 502
@@ -182,10 +262,12 @@ def api_lookup():
     forwards a whitelisted GET request to the AppNeta API and returns the
     raw JSON response.  The path whitelist prevents SSRF via arbitrary paths.
     """
-    data = request.get_json(force=True, silent=True) or {}
-    base_url = (data.get("base_url") or "").strip()
-    api_key  = (data.get("api_key")  or "").strip()
-    path     = (data.get("path")     or "").strip()
+    data = _json_object()
+    if data is None:
+        return jsonify({"error": "Request body must be a valid JSON object."}), 400
+    base_url = _text(data, "base_url")
+    api_key  = _text(data, "api_key")
+    path     = _text(data, "path")
 
     if not base_url or not api_key or not path:
         return jsonify({"error": "base_url, api_key, and path are required."}), 400
@@ -216,9 +298,11 @@ def api_lookup():
 @connector_bp.post("/api/get/connector/detail")
 def api_get_connector_detail():
     """Return full JSON for a single alarm connector by org and connector ID."""
-    data         = request.get_json(force=True, silent=True) or {}
-    base_url     = (data.get("base_url")     or "").strip()
-    api_key      = (data.get("api_key")      or "").strip()
+    data         = _json_object()
+    if data is None:
+        return jsonify({"error": "Request body must be a valid JSON object."}), 400
+    base_url     = _text(data, "base_url")
+    api_key      = _text(data, "api_key")
     org_id       = data.get("org_id")
     connector_id = data.get("connector_id")
 
@@ -264,9 +348,11 @@ def api_get_connector():
 
     Auth failures (401/403) are surfaced as distinct, user-readable errors.
 """
-    data = request.get_json(force=True, silent=True) or {}
-    base_url = (data.get("base_url") or "").strip()
-    api_key  = (data.get("api_key")  or "").strip()
+    data = _json_object()
+    if data is None:
+        return jsonify({"error": "Request body must be a valid JSON object."}), 400
+    base_url = _text(data, "base_url")
+    api_key  = _text(data, "api_key")
     org_id   = data.get("org_id")
 
     if not base_url or not api_key or org_id is None:

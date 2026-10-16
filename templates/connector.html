@@ -1401,13 +1401,25 @@
       });
       const raw = await resp.json();
       if (!resp.ok || raw.error) { _setOrgStatus('warn', raw.error || 'Could not load organizations.'); return; }
-      const orgs = Array.isArray(raw) ? raw
-                 : (raw.data || raw.items || raw.results || []);
+      const orgs = _cleanOrgs(Array.isArray(raw) ? raw
+                 : (raw.data || raw.items || raw.results || []));
       if (!orgs.length) { _setOrgStatus('warn', 'No organizations returned — check API key.'); return; }
       _handleOrgResponse(orgs);
     } catch (e) {
       _setOrgStatus('warn', 'Network error loading organizations.');
     }
+  }
+
+  // Org IDs are interpolated into inline onclick handlers below. Anything the API (or a
+  // hostile base_url) returns that is not a plain integer id is dropped, so an id like
+  // "1);alert(1)//" can never reach the DOM.
+  function _cleanOrgs(list) {
+    if (!Array.isArray(list)) return [];
+    return list
+      .filter(o => o && Number.isSafeInteger(Number(o.id)) && o.id !== '' && o.id !== null && typeof o.id !== 'boolean')
+      .map(o => ({...o, id: Number(o.id),
+                  parentId: Number.isSafeInteger(Number(o.parentId)) ? Number(o.parentId) : 0,
+                  name: String(o.name == null ? '' : o.name)}));
   }
 
   function _handleOrgResponse(orgs) {

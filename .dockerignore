@@ -9,3 +9,10 @@ test
 *.md
 docker-compose.yml
 .DS_Store
+.env
+.env.*
+.pytest_cache/
+.ruff_cache/
+release/
+*.pem
+*.key

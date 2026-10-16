@@ -43,16 +43,17 @@ def build_filter(section: dict, client: "AppNetaClient", errors: list) -> dict:
 
     mp_names = [str(x) for x in section.get("monitoring_point_names", [])]
     if mp_names:
-        numeric_mp_ids = [int(x.strip()) for x in mp_names if is_numeric(x.strip())]
-        name_strs = [x.strip() for x in mp_names if not is_numeric(x.strip())]
+        name_strs = [x.strip() for x in mp_names]
         glob_names = [n for n in name_strs if _has_glob(n)]
+        # Numeric entries go through resolve_to_ids too, so an ID that is not in the
+        # live catalog is reported instead of silently sent.
         plain_names = [n for n in name_strs if not _has_glob(n)]
         if glob_names:
             out["monitoringPointName"] = glob_names
         resolved_ids = resolve_to_ids(
             plain_names, client.list_monitoring_points(), "name", "id", "monitoring point", errors, client.org_name
         ) if plain_names else []
-        all_mp_ids = sorted(set(numeric_mp_ids + resolved_ids))
+        all_mp_ids = sorted(set(resolved_ids))
         if all_mp_ids:
             out["monitoringPointId"] = all_mp_ids
 
