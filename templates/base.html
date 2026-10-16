@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+  <title>{% block title %}AppNeta Generate Connector{% endblock %}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; margin: 0; color: #222; }
+
+    /* ── Top navbar ──────────────────────────────────────────────────────── */
+    #app-nav {
+      background: #1565c0; height: 52px; display: flex; align-items: center;
+      padding: 0 1.2rem; position: sticky; top: 0; z-index: 200;
+      box-shadow: 0 2px 4px rgba(0,0,0,.25);
+    }
+    #nav-logo { display: flex; align-items: center; text-decoration: none; gap: 10px; }
+    #nav-logo img { height: 38px; width: auto; display: block; }
+    #nav-tools {
+      color: #fff; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-size: 1.25rem; font-weight: 300; letter-spacing: .04em;
+      white-space: nowrap; border-left: 1px solid rgba(255,255,255,.35);
+      padding-left: 10px; margin-left: 2px;
+    }
+    #nav-spacer { flex: 1; }
+
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+  <nav id="app-nav">
+    <a id="nav-logo" href="/" title="AppNeta Generate Connector">
+      <img src="/static/appneta_logo.png" alt="AppNeta">
+      <span id="nav-tools">Generate Connector</span>
+    </a>
+  </nav>
+
+  {% block content %}{% endblock %}
+
+</body>
+</html>

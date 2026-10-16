@@ -1,0 +1,2785 @@
+{% extends "base.html" %}
+
+{% block title %}AppNeta — Generate Alarm Connector{% endblock %}
+
+{% block head %}
+<style>
+  body { font-size: 14px; background: #f5f5f5; }
+
+  /* ── Page layout ──────────────────────────────────────────── */
+  #page-body { max-width: 1200px; margin: 1.5rem auto; padding: 0 1rem; }
+  h1 { font-size: 1.4rem; margin: 0 0 .4rem; }
+  .page-desc { font-size: .88rem; color: #555; margin: 0 0 1.2rem; }
+
+  /* ── Docs button ──────────────────────────────────────────── */
+  #docs-btn {
+    font-size: .8rem; padding: .2rem .65rem; border: 1px solid #90caf9;
+    border-radius: 4px; background: #e3f2fd; color: #1565c0; cursor: pointer;
+    font-weight: 500; white-space: nowrap;
+  }
+  #docs-btn:hover { background: #bbdefb; }
+
+  /* ── Cards ────────────────────────────────────────────────── */
+  .card {
+    border: 1px solid #e0e0e0; border-radius: 6px;
+    padding: 1rem 1.2rem; background: #fafafa; margin-bottom: 1rem;
+  }
+  .card-title {
+    font-size: .95rem; font-weight: 700; color: #333;
+    margin: 0 0 .75rem; padding-bottom: .4rem; border-bottom: 1px solid #eee;
+    display: flex; align-items: center; gap: .5rem;
+  }
+  .card-hint { font-size: .8rem; color: #777; margin: -.4rem 0 .75rem; }
+
+  /* ── Form elements ────────────────────────────────────────── */
+  .form-group { margin-bottom: .75rem; }
+  .form-group:last-child { margin-bottom: 0; }
+  label.field-label {
+    display: block; font-size: .82rem; color: #555; margin-bottom: .2rem; font-weight: 500;
+  }
+  .hint { font-weight: 400; color: #888; }
+  .req { color: #c62828; }
+  input[type=text], input[type=number], input[type=url],
+  input[type=password], select, textarea {
+    width: 100%; padding: .38rem .6rem; border: 1px solid #ccc;
+    border-radius: 4px; font-size: .88rem; font-family: inherit;
+    background: #fff; box-sizing: border-box;
+  }
+  input[type=text]:focus, input[type=number]:focus, input[type=url]:focus,
+  input[type=password]:focus, select:focus, textarea:focus {
+    outline: none; border-color: #1565c0; box-shadow: 0 0 0 2px rgba(21,101,192,.15);
+  }
+  textarea { resize: vertical; min-height: 64px; }
+  textarea[rows="1"] { min-height: 0; height: 2.15rem; resize: none; overflow: hidden; }
+  select { cursor: pointer; }
+
+  /* ── Password reveal ──────────────────────────────────────── */
+  .input-reveal { display: flex; gap: 0; }
+  .input-reveal input { border-radius: 4px 0 0 4px; flex: 1; }
+  .btn-reveal {
+    padding: 0 .7rem; border: 1px solid #ccc; border-left: none;
+    border-radius: 0 4px 4px 0; background: #f5f5f5; cursor: pointer;
+    font-size: .78rem; color: #555; white-space: nowrap;
+  }
+  .btn-reveal:hover { background: #eee; }
+
+  /* ── Grid layouts ─────────────────────────────────────────── */
+  .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+  .filter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+  @media (max-width: 700px) { .row-2, .filter-grid { grid-template-columns: 1fr; } }
+
+  /* ── Checkboxes ───────────────────────────────────────────── */
+  .check-group { display: flex; flex-wrap: wrap; gap: .3rem .8rem; padding-top: .15rem; }
+  .check-item {
+    display: flex; align-items: center; gap: .3rem;
+    font-size: .82rem; color: #333; cursor: pointer;
+  }
+  .check-item input { width: auto; margin: 0; cursor: pointer; }
+
+  /* ── Inline field errors / warnings ──────────────────────── */
+  .field-err {
+    font-size: .75rem; color: #c62828; margin-top: .2rem; display: none;
+  }
+  .field-err.visible { display: block; }
+  .field-hint { font-size: .76rem; color: #666; margin-top: .18rem; }
+  .field-hint code { background: #f4f4f4; border-radius: 3px; padding: .05rem .25rem; font-size: .78rem; }
+  .field-warn {
+    font-size: .75rem; color: #b45309; margin-top: .2rem; display: none;
+  }
+  .field-warn.visible { display: block; }
+  input.input-err, textarea.input-err { border-color: #e57373 !important; }
+  input.input-ok { border-color: #66bb6a !important; }
+
+  /* ── Dynamic rows (webhook headers) ──────────────────────── */
+  .dyn-row { display: flex; gap: .4rem; margin-bottom: .1rem; align-items: flex-start; }
+  .dyn-row-inputs { display: flex; flex: 1; gap: .4rem; flex-direction: column; }
+  .dyn-row-fields { display: flex; gap: .4rem; flex: 1; align-items: center; }
+  .dyn-row-fields input { flex: 1; }
+  .btn-del {
+    flex-shrink: 0; width: 24px; height: 24px; border: 1px solid #ccc;
+    border-radius: 3px; background: #f5f5f5; cursor: pointer; font-size: .9rem;
+    display: flex; align-items: center; justify-content: center; color: #888;
+    padding: 0; line-height: 1;
+  }
+  .btn-del:hover { background: #fce4e4; border-color: #e57373; color: #c62828; }
+  .btn-add {
+    font-size: .78rem; padding: .2rem .55rem; border: 1px dashed #aaa;
+    border-radius: 3px; background: transparent; cursor: pointer; color: #555;
+    margin-top: .1rem;
+  }
+  .btn-add:hover { background: #f5f5f5; border-style: solid; }
+
+  /* ── Auth conditional fields ──────────────────────────────── */
+  .auth-field { display: none; }
+  .auth-field.visible { display: block; }
+
+  /* ── Advanced section ─────────────────────────────────────── */
+  details.adv { margin-top: .6rem; }
+  details.adv > summary {
+    font-size: .8rem; color: #1565c0; cursor: pointer; user-select: none;
+    list-style: none; display: flex; align-items: center; gap: .3rem;
+  }
+  details.adv > summary::before { content: '▶'; font-size: .65rem; transition: transform .15s; }
+  details.adv[open] > summary::before { transform: rotate(90deg); }
+  details.adv .adv-body { padding-top: .5rem; }
+
+  /* ── Enabled toggle ───────────────────────────────────────── */
+  .toggle-wrap { display: flex; align-items: center; gap: .5rem; padding-top: .25rem; }
+
+  /* ── Section divider ──────────────────────────────────────── */
+  .section-divider {
+    font-size: .78rem; font-weight: 600; color: #666; text-transform: uppercase;
+    letter-spacing: .05em; margin: .6rem 0 .6rem; padding-bottom: .25rem;
+    border-bottom: 1px solid #eee;
+  }
+
+  /* ── Mode badge ───────────────────────────────────────────── */
+  .mode-badge {
+    font-size: .7rem; font-weight: 600; padding: .15rem .45rem;
+    border-radius: 3px; letter-spacing: .03em;
+  }
+  .mode-create { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+  .mode-update { background: #fff8e1; color: #e65100; border: 1px solid #ffe082; }
+  .needs-credential { background: #fff0f0 !important; border-color: #c62828 !important; outline-color: #c62828; }
+  /* Carried-over filter values retained when switching PUT→POST — informational, cleared on edit */
+  .carried-over { background: #fff0f0 !important; border-color: #c62828 !important; outline-color: #c62828; }
+  .chip-input.carried-over { box-shadow: 0 0 0 1px #c62828; }
+  label.check-item.carried-over { background: #fff0f0; border: 1px solid #c62828; border-radius: 4px; padding: .05rem .35rem; }
+
+  /* ── Operation hint ───────────────────────────────────────── */
+  .operation-hint {
+    font-size: .8rem; color: #555; line-height: 1.5; margin: 0;
+    padding: .4rem .6rem; background: #f5f5f5; border-radius: 4px;
+  }
+  .operation-hint.update { background: #fff8e1; border: 1px solid #ffe082; }
+
+  /* ── Buttons ──────────────────────────────────────────────── */
+  button#generate-btn {
+    background: #1565c0; color: #fff; border: none; border-radius: 5px;
+    padding: .5rem 1.4rem; font-size: .9rem; font-weight: 600; cursor: pointer;
+  }
+  button#generate-btn:hover { background: #1976d2; }
+  button#generate-btn:disabled { background: #90a4ae; cursor: not-allowed; }
+  .btn-reset {
+    background: transparent; border: 1px solid #ccc; border-radius: 5px;
+    padding: .48rem 1rem; font-size: .88rem; cursor: pointer; color: #555;
+  }
+  .btn-reset:hover { background: #f5f5f5; }
+
+  /* ── Output card ──────────────────────────────────────────── */
+  #output-card { display: none; }
+  #output-meta { font-size: .8rem; color: #666; margin-bottom: .4rem; }
+  .output-toolbar { display: flex; gap: .4rem; margin-bottom: .5rem; }
+  .tool-btn {
+    font-size: .78rem; padding: .2rem .6rem; border: 1px solid #ccc;
+    border-radius: 3px; background: #f5f5f5; cursor: pointer; color: #333;
+    transition: background .15s, color .15s, border-color .15s;
+  }
+  .tool-btn:hover { background: #e8eaf6; border-color: #9fa8da; }
+  .tool-btn.copied { background: #2e7d32; color: #fff; border-color: #2e7d32; }
+  #output-json {
+    background: #1e1e1e; color: #d4d4d4;
+    padding: .8rem 1rem; border-radius: 4px; font-size: .82rem;
+    font-family: 'SFMono-Regular', Consolas, monospace;
+    overflow-x: auto; white-space: pre; max-height: 600px; overflow-y: auto;
+  }
+  /* ── Org typeahead ───────────────────────────────────────── */
+  .org-wrap { position: relative; }
+  #org-dropdown {
+    display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 400;
+    background: #fff; border: 1px solid #ccc; border-top: none;
+    border-radius: 0 0 4px 4px; max-height: 280px; overflow-y: auto;
+    box-shadow: 0 4px 10px rgba(0,0,0,.12);
+  }
+  .org-dd-org {
+    padding: .3rem .75rem; font-size: .84rem; font-weight: 600; color: #1a1a1a;
+    cursor: pointer; border-top: 1px solid #eee; background: #fafafa;
+  }
+  .org-dd-org:first-child { border-top: none; }
+  .org-dd-org:hover { background: #e3f2fd; }
+  .org-dd-child {
+    padding: .28rem .75rem .28rem 1.6rem; font-size: .81rem; color: #333;
+    cursor: pointer;
+  }
+  .org-dd-child:hover { background: #e3f2fd; }
+  .org-dd-id { font-size: .72rem; color: #888; margin-left: .35rem; }
+  #org-status {
+    font-size: .78rem; margin-top: .3rem; padding: .25rem .5rem;
+    border-radius: 3px; display: none;
+  }
+  #org-status.status-warn {
+    display: block; background: #fff8e1; border: 1px solid #ffcc02; color: #e65100;
+  }
+  #org-status.status-info {
+    display: block; background: #e8f5e9; border: 1px solid #a5d6a7; color: #2e7d32;
+  }
+  input.input-orange { border-color: #f57c00 !important; background: #fff8e1 !important; }
+
+  /* ── Chip inputs ─────────────────────────────────────────── */
+  .chip-input-wrap { position: relative; margin-bottom: .1rem; }
+  .chip-input {
+    min-height: 2.2rem; padding: .25rem .4rem; border: 1px solid #ccc;
+    border-radius: 4px; background: #fff; display: flex; flex-wrap: wrap;
+    gap: .3rem; align-items: center; cursor: text;
+  }
+  .chip-input:focus-within { border-color: #1565c0; box-shadow: 0 0 0 2px rgba(21,101,192,.15); }
+  .chip-input input[type=text] {
+    width: auto; border: none; outline: none; box-shadow: none; flex: 1;
+    min-width: 8rem; font-size: .88rem; padding: .15rem .2rem;
+    background: transparent;
+  }
+  .chip {
+    display: inline-flex; align-items: center; gap: .25rem;
+    background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9;
+    border-radius: 3px; padding: .1rem .4rem; font-size: .82rem;
+    white-space: nowrap; max-width: 260px;
+  }
+  .chip-label { overflow: hidden; text-overflow: ellipsis; }
+  .chip-x {
+    cursor: pointer; font-size: 1rem; line-height: 1; color: #1565c0;
+    opacity: .65; border: none; background: none; padding: 0; flex-shrink: 0;
+  }
+  .chip-x:hover { opacity: 1; }
+  .chip.chip-glob {
+    background: #fff3e0; color: #bf360c; border-color: #ffcc80; font-family: monospace;
+  }
+  .chip.chip-glob .chip-x { color: #bf360c; }
+  .chip-dd {
+    display: none; position: absolute; left: 0; right: 0; top: calc(100% + 2px);
+    background: #fff; border: 1px solid #ccc; border-radius: 4px;
+    max-height: 220px; overflow-y: auto; z-index: 110;
+    box-shadow: 0 2px 8px rgba(0,0,0,.12);
+  }
+  .chip-dd-item {
+    padding: .35rem .75rem; font-size: .85rem; cursor: pointer;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .chip-dd-item:hover { background: #e3f2fd; }
+  .chip-dd-item.indented { padding-left: 1.6rem; }
+  .chip-dd-group {
+    padding: .28rem .75rem .18rem; font-size: .78rem; font-weight: 700;
+    color: #444; background: #f0f4f8; cursor: default;
+    border-top: 1px solid #e0e0e0; user-select: none;
+  }
+  .chip-dd-group:first-child { border-top: none; }
+  .chip-dd-group-id { font-size: .7rem; color: #888; font-weight: 400; margin-left: .3rem; }
+  .chip-dd-msg { padding: .4rem .75rem; font-size: .8rem; color: #888; }
+
+  /* ── Enrichment lock ─────────────────────────────────────── */
+  #enrich-wrap.enrich-locked {
+    opacity: .42; pointer-events: none; user-select: none;
+    transition: opacity .2s;
+  }
+
+  /* ── Multi-org disclosure sections ───────────────────────── */
+  .org-disclosure {
+    border: 1px solid #ddd; border-radius: 4px; margin-bottom: .4rem;
+  }
+  .org-disclosure summary {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .4rem .75rem; cursor: pointer; user-select: none;
+    font-size: .84rem; font-weight: 600; color: #333;
+    background: #f3f4f6; border-radius: 4px; list-style: none;
+  }
+  .org-disclosure summary::-webkit-details-marker { display: none; }
+  .org-disclosure[open] summary { border-radius: 4px 4px 0 0; border-bottom: 1px solid #ddd; }
+  .org-disclosure summary .disc-arrow { margin-right: .4rem; font-size: .7rem; color: #666; }
+  .org-disclosure[open] summary .disc-arrow { content: '▼'; }
+  .disc-toolbar { display: flex; gap: .3rem; flex-shrink: 0; margin-left: .75rem; }
+  .org-disclosure pre {
+    margin: 0; padding: .8rem 1rem; border-radius: 0 0 4px 4px;
+    background: #1e1e1e; color: #d4d4d4; font-size: .82rem;
+    font-family: 'SFMono-Regular', Consolas, monospace;
+    overflow-x: auto; white-space: pre; max-height: 500px; overflow-y: auto;
+  }
+  #output-errors {
+    display: none; margin-top: .6rem; padding: .5rem .75rem;
+    background: #fff3e0; border: 1px solid #ffcc02; border-radius: 4px;
+    font-size: .82rem; color: #e65100;
+  }
+  #org-tree-box {
+    display: none; margin-top: .5rem; padding: .5rem .75rem;
+    background: #f3f4f6; border: 1px solid #ccc; border-radius: 4px;
+    font-size: .79rem; font-family: monospace; white-space: pre; color: #333;
+    max-height: 320px; overflow-y: scroll;
+  }
+
+  /* ── Docs sliding panel ───────────────────────────────────── */
+  #docs-backdrop {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 400;
+  }
+  #docs-backdrop.open { display: block; }
+  #docs-panel {
+    position: fixed; top: 0; right: 0; bottom: 0; width: min(420px, 92vw);
+    background: #fff; z-index: 401; transition: transform .25s ease;
+    box-shadow: -3px 0 12px rgba(0,0,0,.15); display: flex; flex-direction: column;
+    transform: translateX(100%);
+  }
+  #docs-panel.open { transform: translateX(0); }
+  #docs-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: .7rem 1rem; background: #1565c0; color: #fff; flex-shrink: 0;
+  }
+  #docs-header span { font-weight: 600; font-size: .95rem; }
+  #docs-close {
+    background: transparent; border: none; color: rgba(255,255,255,.8);
+    font-size: 1.1rem; cursor: pointer; line-height: 1; padding: 0;
+  }
+  #docs-close:hover { color: #fff; }
+  #docs-body { padding: 1rem; overflow-y: auto; font-size: .85rem; line-height: 1.5; }
+  #docs-body h3 { font-size: .95rem; margin: 1rem 0 .3rem; color: #1565c0; }
+  #docs-body h3:first-child { margin-top: 0; }
+  #docs-body p { margin: 0 0 .5rem; }
+  #docs-body table { border-collapse: collapse; width: 100%; font-size: .8rem; margin-bottom: .5rem; }
+  #docs-body th { background: #f0f0f0; text-align: left; padding: .25rem .5rem; border-bottom: 2px solid #ddd; }
+  #docs-body td { padding: .2rem .5rem; border-bottom: 1px solid #eee; vertical-align: top; }
+  #docs-body code {
+    background: #f0f0f0; padding: .05rem .3rem; border-radius: 3px;
+    font-family: 'SFMono-Regular', Consolas, monospace; font-size: .85em;
+  }
+  #docs-body ul { margin: .2rem 0 .5rem 1.2rem; padding: 0; }
+  #docs-body li { margin-bottom: .2rem; }
+  .defect-box {
+    background: #fff8e1; border: 1px solid #ffe082; border-radius: 4px;
+    padding: .6rem .8rem; margin: .4rem 0 .6rem; font-size: .82rem;
+  }
+  .defect-box strong { color: #e65100; }
+  /* ── Multi-org accordions ────────────────────────────────── */
+  #multi-org-container { display:flex; flex-direction:column; gap:.5rem; margin-bottom:1rem; }
+  .org-accordion { border:1px solid #e0e0e0; border-radius:8px; overflow:hidden; }
+  .acc-header {
+    width:100%; display:flex; align-items:center; gap:.75rem;
+    padding:.75rem 1rem; background:#fafafa;
+    border:none; cursor:pointer; text-align:left;
+    font-size:.92rem; font-weight:500; color:inherit;
+  }
+  .acc-header:hover { background:#f0f4fa; }
+  .acc-chevron { font-size:.72rem; color:#666; min-width:1rem; text-align:center; }
+  .acc-org-name { flex:1; }
+  .acc-org-id { font-size:.78rem; color:#888; font-weight:400; }
+  .acc-enrich-status { font-size:.72rem; color:#888; font-style:italic; }
+  .acc-body { padding:0 1rem 1rem; }
+  .acc-body-closed { display:none; }
+  .acc-filter-loading { text-align:center; padding:2rem; color:#888; font-size:.85rem; }
+  .acc-multi-note { font-size:.8rem; color:#b45309; padding:.5rem .75rem; background:#fffbf0; border:1px solid #f0c040; border-radius:6px; margin-bottom:.75rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="page-body">
+  <div id="title-row" style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:.4rem;margin-top:.5rem">
+    <h1 style="margin:0">Generate Alarm Connector</h1>
+    <button id="docs-btn" onclick="openDocs()">Documentation</button>
+  </div>
+  <p class="page-desc">
+    Build a JSON payload for creating or updating an AppNeta alarm connector.
+    Provide an API key and NIS server URL to resolve monitoring point, policy, and group names to IDs automatically.
+  </p>
+
+  <!-- ── 1. Connection ─────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-title">Connection</div>
+    <div class="row-2">
+      <div class="form-group">
+        <label class="field-label">API Key <span class="req">*</span></label>
+        <div class="input-reveal">
+          <input type="password" id="api-key" autocomplete="off" data-1p-ignore data-lpignore="true" placeholder="Paste AppNeta API token" oninput="checkNoNewlines(this,'api-key-warn'); _debounceEnrich()">
+          <button type="button" class="btn-reveal" onclick="toggleReveal('api-key',this)">Show</button>
+        </div>
+        <div id="api-key-warn" class="field-err">&#x26a0; API key must not contain line breaks</div>
+      </div>
+      <div class="form-group">
+        <label class="field-label">NIS Server URL <span class="req">*</span></label>
+        <input type="text" id="base-url" placeholder="https://demo.pm.appneta.com" autocomplete="off" oninput="checkBaseUrl(); _debounceEnrich()">
+        <div id="base-url-warn" class="field-warn">⚠ NIS URL must start with https://</div>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:0">
+      <label class="field-label">Org</label>
+      <div class="org-wrap">
+        <input type="text" id="org" placeholder="Loading organizations…" disabled
+               autocomplete="off" data-1p-ignore data-lpignore="true"
+               oninput="_filterOrgDropdown(this.value)"
+               onfocus="_onOrgFocus()"
+               onblur="_orgBlur()"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();_validateAndConfirmOrgInput();document.getElementById('org-dropdown').style.display='none';}">
+        <div id="org-dropdown"></div>
+      </div>
+      <div id="org-status"></div>
+      <div id="org-tree-box"></div>
+    </div>
+  </div>
+
+  <!-- ── 2. Operation mode ─────────────────────────────────── -->
+  <div class="card" id="operation-card">
+    <div class="card-title">
+      Operation
+      <span id="mode-badge" class="mode-badge mode-create">CREATE — POST</span>
+    </div>
+    <div class="row-2">
+      <div class="form-group" style="margin-bottom:0">
+        <label class="field-label">Connector ID <span class="hint">(select existing to UPDATE, or leave as "Create new")</span></label>
+        <select id="connector-picker" onchange="onConnectorPickerChange()" style="color:#888">
+          <option value="" style="color:#888">— Create new connector (POST) —</option>
+        </select>
+        <input type="hidden" id="connector-id" value="">
+        <div id="connector-picker-status" style="font-size:.75rem;color:#888;margin-top:.3rem;display:none"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <p id="operation-hint" class="operation-hint">
+          No ID set — payload will be submitted via
+          <strong>POST /api/v4/connector/alarm</strong> to create a new connector.
+          The API returns the new connector's <code>id</code>; save it here for future updates.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 3. Connector + Webhook ────────────────────────────── -->
+  <div class="card" id="connector-webhook-card">
+    <div class="card-title">Connector</div>
+
+    <div class="row-2">
+      <div class="form-group">
+        <label class="field-label">Name <span class="req">*</span></label>
+        <input type="text" id="connector-name" placeholder="Alarm Webhook Connector">
+      </div>
+      <div class="form-group">
+        <label class="field-label">Description <span class="hint">(optional)</span></label>
+        <input type="text" id="connector-desc" placeholder="Optional description">
+      </div>
+    </div>
+    <div class="row-2">
+      <div class="form-group">
+        <label class="field-label">Notify On</label>
+        <div class="check-group" style="padding-top:.3rem">
+          <label class="check-item">
+            <input type="checkbox" name="notify_on" value="ALARM_RAISED" checked> Alarm Raised
+          </label>
+          <label class="check-item">
+            <input type="checkbox" name="notify_on" value="ALARM_CLEARED" checked> Alarm Cleared
+          </label>
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="toggle-wrap" style="padding-top:1.3rem">
+          <input type="checkbox" id="connector-enabled" checked>
+          <span>Connector Enabled</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-divider">Webhook Delivery</div>
+
+    <div class="row-2">
+      <div class="form-group">
+        <label class="field-label">Webhook URL <span class="req">*</span></label>
+        <input type="url" id="wh-url" autocomplete="off" data-1p-ignore data-lpignore="true" placeholder="https://hooks.example.com/appneta" oninput="checkWhUrl()">
+        <div id="wh-url-warn" style="display:none;font-size:.75rem;color:#b45309;margin-top:.2rem">
+          ⚠ Plain HTTP — alarm data will be sent unencrypted. Use HTTPS if possible.
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="field-label">Method</label>
+        <select id="wh-method">
+          <option value="POST" selected>POST</option>
+          <option value="GET">GET</option>
+          <option value="PUT">PUT</option>
+          <option value="PATCH">PATCH</option>
+          <option value="DELETE">DELETE</option>
+          <option value="HEAD">HEAD</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row-2">
+      <div class="form-group">
+        <label class="field-label">Auth Type</label>
+        <select id="wh-auth-type" onchange="updateAuthFields()">
+          <option value="NONE" selected>None — no built-in auth</option>
+          <option value="BASIC">Basic — username + password</option>
+          <option value="BEARER">Bearer — Authorization: Bearer &lt;token&gt;</option>
+        </select>
+      </div>
+      <div class="form-group toggle-wrap" style="padding-top:1.4rem">
+        <input type="checkbox" id="wh-ignore-ssl">
+        <span>Ignore SSL Errors</span>
+      </div>
+    </div>
+
+    <div class="row-2">
+      <div class="form-group auth-field" id="auth-username-wrap">
+        <label class="field-label">Username</label>
+        <input type="text" id="wh-username" autocomplete="off" data-1p-ignore data-lpignore="true" oninput="checkNoNewlines(this, 'wh-username-warn')">
+        <div id="wh-username-warn" class="field-err">⚠ Username must not contain line breaks</div>
+      </div>
+      <div class="form-group auth-field" id="auth-cred-wrap">
+        <label class="field-label" id="auth-cred-label">Token</label>
+        <div class="input-reveal">
+          <input type="password" id="wh-credential" autocomplete="off" data-1p-ignore data-lpignore="true" oninput="checkNoNewlines(this, 'wh-credential-warn'); this.classList.remove('needs-credential'); _updateGenerateGating()">
+          <button type="button" class="btn-reveal" onclick="toggleReveal('wh-credential',this)">Show</button>
+        </div>
+        <div id="wh-credential-warn" class="field-err">⚠ Token must not contain line breaks</div>
+        <div style="font-size:.75rem;color:#888;margin-top:.2rem">Stored in memory only — not included in the generated JSON.</div>
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-bottom:0">
+      <label class="field-label">Custom Headers</label>
+      <div id="headers-mask-note" class="field-err" style="display:none;margin-bottom:.4rem">⚠ Header values marked red are masked by AppNeta — re-enter them before generating.</div>
+      <div id="headers-list"></div>
+      <button type="button" class="btn-add" onclick="addHeader()">+ Add Header</button>
+      <p class="hint" style="margin:.4rem 0 0;font-size:.75rem">
+        Common examples: <code>Authorization: Bearer &lt;token&gt;</code> &mdash; or for token-based collectors, check your platform's webhook authentication docs.
+      </p>
+    </div>
+  </div>
+
+  <!-- ── 4. Filters ────────────────────────────────────────── -->
+  <div id="enrich-wrap" class="enrich-locked">
+  <div class="filter-grid">
+
+    <!-- Include -->
+    <div class="card" style="margin-bottom:0">
+      <div class="card-title">Include Filters</div>
+      <p class="card-hint">Alarms matching any of these criteria will be forwarded. Leave a field empty to place no restriction on it.</p>
+      <div id="inc-or-warning" class="field-warn" style="display:none">&#x26a0; Multiple filter types are active. AppNeta applies <strong>OR</strong> logic across filter types &mdash; an alarm is forwarded if it matches <em>any one</em> criterion, not all of them. To restrict to a specific combination, use only one filter type at a time.</div>
+
+      <div class="form-group">
+        <label class="field-label">Severity</label>
+        <div class="check-group">
+          <label class="check-item"><input type="checkbox" name="inc_sev" value="CRITICAL"> Critical</label>
+          <label class="check-item"><input type="checkbox" name="inc_sev" value="MAJOR"> Major</label>
+          <label class="check-item"><input type="checkbox" name="inc_sev" value="MINOR"> Minor</label>
+          <label class="check-item"><input type="checkbox" name="inc_sev" value="WARNING"> Warning</label>
+          <label class="check-item"><input type="checkbox" name="inc_sev" value="CLEARED"> Cleared</label>
+          <label class="check-item"><input type="checkbox" name="inc_sev" value="INDETERMINATE"> Indet.</label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="field-label">Noise Filter</label>
+        <div class="check-group">
+          <label class="check-item"><input type="checkbox" name="inc_noise" value="FREQUENT"> Frequent only</label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="field-label">MP Names</label>
+        <textarea id="inc-mp-names" rows="1" placeholder="Type to search…"></textarea>
+        <div class="field-hint">Glob patterns supported — type pattern and press ↵ &nbsp;e.g. <code>edge-*</code> &nbsp;<code>*-gateway</code> &nbsp;<code>?w-core</code> &nbsp;<code>dc?-mp*</code></div>
+      </div>
+
+      <div class="form-group">
+        <label class="field-label">MP Types</label>
+        <textarea id="inc-mp-types" rows="1" placeholder="Type to select…"></textarea>
+        <div class="field-hint">Glob patterns supported — e.g. <code>* microAppliance</code> &nbsp;<code>*Container</code> &nbsp;<code>m*</code></div>
+      </div>
+
+      <div class="form-group">
+        <label class="field-label">Policy Names</label>
+        <textarea id="inc-policies" rows="1" placeholder="Type to search…"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="field-label">Policy Group Names</label>
+        <textarea id="inc-groups" rows="1" placeholder="Type to search…"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="field-label">Tags <span class="hint">(Category:Value, Category, or :Value)</span></label>
+        <textarea id="inc-tags" rows="3" placeholder="Location:Chicago IL&#10;Cloud:AWS&#10;Environment" oninput="_checkIncludeOrWarning('')"></textarea>
+      </div>
+
+      <details class="adv">
+        <summary>Advanced</summary>
+        <div class="adv-body">
+          <div class="form-group">
+            <label class="field-label">Targets</label>
+            <textarea id="inc-targets" rows="1" placeholder="Type to search…"></textarea>
+            <div class="field-hint">Glob patterns supported — e.g. <code>*.example.com</code> &nbsp;<code>10.0.*</code></div>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="field-label">Alarm Rule IDs <span class="hint">(integers — obtain from AppNeta GUI → Alarms → Alarm Rules)</span></label>
+            <textarea id="inc-alarm-rules" rows="2" placeholder="105&#10;203" oninput="checkAlarmRules(this, 'inc-alarm-rules-warn'); _checkIncludeOrWarning('')"></textarea>
+            <div id="inc-alarm-rules-warn" class="field-warn">⚠ Non-integer lines will be ignored</div>
+          </div>
+          <div class="form-group">
+            <label class="field-label">MP IDs <span class="hint">(numeric only — dedicated ID field, avoid combining with MP Names for the same MP)</span></label>
+            <textarea id="inc-mp-ids" rows="1" placeholder="Type an ID or name to search…"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="field-label">Policy IDs <span class="hint">(numeric only)</span></label>
+            <textarea id="inc-policy-ids" rows="1" placeholder="Type an ID or name to search…"></textarea>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="field-label">Policy Group IDs <span class="hint">(numeric only)</span></label>
+            <textarea id="inc-group-ids" rows="1" placeholder="Type an ID or name to search…"></textarea>
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <!-- Exclude -->
+    <div class="card" style="margin-bottom:0">
+      <div class="card-title">Exclude Filters</div>
+      <p class="card-hint">Alarms matching ANY of these criteria will be suppressed, regardless of include filters.</p>
+
+      <div class="form-group">
+        <label class="field-label">Severity</label>
+        <div class="check-group">
+          <label class="check-item"><input type="checkbox" name="exc_sev" value="CRITICAL"> Critical</label>
+          <label class="check-item"><input type="checkbox" name="exc_sev" value="MAJOR"> Major</label>
+          <label class="check-item"><input type="checkbox" name="exc_sev" value="MINOR"> Minor</label>
+          <label class="check-item"><input type="checkbox" name="exc_sev" value="WARNING"> Warning</label>
+          <label class="check-item"><input type="checkbox" name="exc_sev" value="CLEARED"> Cleared</label>
+          <label class="check-item"><input type="checkbox" name="exc_sev" value="INDETERMINATE"> Indet.</label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="field-label">Noise Filter</label>
+        <div class="check-group">
+          <label class="check-item"><input type="checkbox" name="exc_noise" value="FREQUENT"> Frequent only</label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="field-label">MP Names</label>
+        <textarea id="exc-mp-names" rows="1" placeholder="Type to search…"></textarea>
+        <div class="field-hint">Glob patterns supported — type pattern and press ↵ &nbsp;e.g. <code>edge-*</code> &nbsp;<code>*-gateway</code> &nbsp;<code>?w-core</code></div>
+      </div>
+
+      <div class="form-group">
+        <label class="field-label">MP Types</label>
+        <textarea id="exc-mp-types" rows="1" placeholder="Type to select…"></textarea>
+        <div class="field-hint">Glob patterns supported — e.g. <code>* microAppliance</code> &nbsp;<code>*Container</code></div>
+      </div>
+
+      <div class="form-group">
+        <label class="field-label">Policy Names</label>
+        <textarea id="exc-policies" rows="1" placeholder="Type to search…"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="field-label">Policy Group Names</label>
+        <textarea id="exc-groups" rows="1" placeholder="Type to search…"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="field-label">Tags <span class="hint">(Category:Value, Category, or :Value)</span></label>
+        <textarea id="exc-tags" rows="3" placeholder="VPN:OpenVPN&#10;Environment:Test"></textarea>
+      </div>
+
+      <details class="adv">
+        <summary>Advanced</summary>
+        <div class="adv-body">
+          <div class="form-group">
+            <label class="field-label">Targets</label>
+            <textarea id="exc-targets" rows="1" placeholder="Type to search…"></textarea>
+            <div class="field-hint">Glob patterns supported — e.g. <code>*.example.com</code> &nbsp;<code>10.0.*</code></div>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="field-label">Alarm Rule IDs <span class="hint">(integers)</span></label>
+            <textarea id="exc-alarm-rules" rows="2" oninput="checkAlarmRules(this, 'exc-alarm-rules-warn')"></textarea>
+            <div id="exc-alarm-rules-warn" class="field-warn">⚠ Non-integer lines will be ignored</div>
+          </div>
+          <div class="form-group">
+            <label class="field-label">MP IDs <span class="hint">(numeric only — dedicated ID field, avoid combining with MP Names for the same MP)</span></label>
+            <textarea id="exc-mp-ids" rows="1" placeholder="Type an ID or name to search…"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="field-label">Policy IDs <span class="hint">(numeric only)</span></label>
+            <textarea id="exc-policy-ids" rows="1" placeholder="Type an ID or name to search…"></textarea>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="field-label">Policy Group IDs <span class="hint">(numeric only)</span></label>
+            <textarea id="exc-group-ids" rows="1" placeholder="Type an ID or name to search…"></textarea>
+          </div>
+        </div>
+      </details>
+    </div>
+  </div><!-- .filter-grid -->
+  </div><!-- #enrich-wrap -->
+
+  <!-- ── 4b. Multi-org accordions (shown instead of 3+4 above) ── -->
+  <div id="multi-org-container" style="display:none"></div>
+
+  <!-- ── 5. Generate ─────────────────────────────────────────── -->
+  <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap">
+    <button id="generate-btn" onclick="generatePayload()">Generate Payload</button>
+    <button class="btn-reset" onclick="resetAll()">Reset All</button>
+    <div id="gen-status" style="font-size:.82rem;color:#c62828"></div>
+  </div>
+
+  <div id="output-card" class="card">
+    <div class="card-title">Output</div>
+    <div id="output-meta"></div>
+    <div class="output-toolbar" id="output-toolbar-single">
+      <button class="tool-btn" onclick="copyOutput(event)">Copy JSON</button>
+      <button class="tool-btn" onclick="downloadOutput()">Download .json</button>
+    </div>
+    <div id="output-diff-single"></div>
+    <pre id="output-json"></pre>
+    <div id="output-multi"></div>
+    <div id="output-errors"></div>
+  </div>
+
+</div><!-- #page-body -->
+
+<!-- ── Docs sliding panel ──────────────────────────────────── -->
+<div id="docs-backdrop" onclick="closeDocs()"></div>
+<div id="docs-panel">
+  <div id="docs-header">
+    <span>Documentation</span>
+    <button id="docs-close" onclick="closeDocs()" title="Close">✕</button>
+  </div>
+  <div id="docs-body">
+    <h3>Overview</h3>
+    <p>Generates the JSON payload for creating or updating an AppNeta alarm connector
+       via <code>POST /api/v4/connector/alarm</code> (CREATE) or
+       <code>PUT /api/v4/connector/alarm</code> (UPDATE).</p>
+    <p>When an API key and NIS server URL are provided, monitoring point names, policy names,
+       and group names are resolved to their int64 global IDs via the AppNeta API.
+       A read-only API key is sufficient for all resolution.</p>
+
+    <h3>Fields</h3>
+    <table>
+      <tr><th>Field</th><th>Required</th><th>Notes</th></tr>
+      <tr><td><code>API Key</code></td><td>Yes</td><td>AppNeta API token. Read-only scope is sufficient for CREATE mode. UPDATE mode (GET connector) requires elevated access.</td></tr>
+      <tr><td><code>NIS Server URL</code></td><td>Yes</td><td>Must be HTTPS (e.g. <code>https://app-01.pm.appneta.com</code>).</td></tr>
+      <tr><td><code>Org</code></td><td>Conditional</td><td>Org ID or name substring. Comma-separate multiple values to generate one payload per org (e.g. <code>4160, 4275, 6324</code>) — all must share the same root hierarchy. Required for superadmin keys (which span multiple unrelated hierarchies); optional for org-admin keys, which automatically generate one payload per org in their hierarchy when left blank.</td></tr>
+      <tr><td><code>Connector ID</code></td><td>No</td><td>Leave blank for CREATE (POST). Set to an existing connector's int64 ID for UPDATE (PUT). The API returns this ID after a successful POST.</td></tr>
+      <tr><td><code>Notify On</code></td><td>No</td><td>Which events trigger the webhook. Default: both Alarm Raised and Alarm Cleared.</td></tr>
+    </table>
+
+    <h3>CREATE vs UPDATE</h3>
+    <p><strong>CREATE</strong> (Connector ID blank): payload submitted to
+       <code>POST /api/v4/connector/alarm</code>. The API assigns an <code>id</code> on success.</p>
+    <p><strong>UPDATE</strong> (Connector ID set): the existing connector is fetched (GET) and
+       merged with the form values. Fields you fill in override the existing connector; empty
+       fields preserve existing values. The merged payload is submitted to
+       <code>PUT /api/v4/connector/alarm</code> with <code>id</code> in the body.</p>
+    <h3>Filters</h3>
+    <p>Include and exclude blocks share the same fields. Alarms must match <em>all</em>
+       include criteria and <em>none</em> of the exclude criteria to be forwarded.</p>
+    <p>Leaving a filter field empty means "no restriction" for that field (not "nothing passes").</p>
+
+    <h3>Tags</h3>
+    <p>Enter one tag spec per line. Three formats are supported:</p>
+    <ul>
+      <li><code>Category:Value</code> — exact pair (e.g. <code>Location:Chicago IL</code>)</li>
+      <li><code>Category</code> — all values in that category (e.g. <code>Cloud</code>)</li>
+      <li><code>:Value</code> — all categories with that value (e.g. <code>:Production</code>)</li>
+    </ul>
+    <p>Tags are validated against the org's tag catalog. Unrecognized tags are listed as warnings
+       in the output and omitted from the payload.</p>
+
+    <h3>Webhook Auth</h3>
+    <table>
+      <tr><th>Type</th><th>Behavior</th></tr>
+      <tr><td><code>NONE</code></td><td>No built-in auth header. Use Custom Headers for platform-specific token auth (e.g. <code>Authorization: Bearer &lt;token&gt;</code> or a proprietary header your collector requires).</td></tr>
+      <tr><td><code>BASIC</code></td><td>AppNeta sends <code>Authorization: Basic &lt;base64 user:pass&gt;</code> on each webhook call. Credentials are embedded in the JSON payload.</td></tr>
+      <tr><td><code>BEARER</code></td><td>AppNeta sends <code>Authorization: Bearer &lt;token&gt;</code>. Token is embedded in the JSON payload.</td></tr>
+    </table>
+
+    <h3>MP Types</h3>
+    <p>Plain strings are matched case-insensitively as substrings of live type names. The alias
+       <code>n10</code> expands to <code>Windows</code> and <code>macOS</code>. Glob patterns
+       (<code>*</code>, <code>?</code>, <code>+</code>, <code>!</code>) are passed through to the
+       API as-is.</p>
+  </div>
+</div>
+
+<script>
+  // ── Docs panel ─────────────────────────────────────────────
+  function openDocs() {
+    document.getElementById('docs-backdrop').classList.add('open');
+    document.getElementById('docs-panel').classList.add('open');
+  }
+  function closeDocs() {
+    document.getElementById('docs-backdrop').classList.remove('open');
+    document.getElementById('docs-panel').classList.remove('open');
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDocs(); });
+
+  // ── Mode badge + hint ───────────────────────────────────────
+  function updateModeBadge() {
+    const id = document.getElementById('connector-id').value.trim();
+    const badge = document.getElementById('mode-badge');
+    const hint  = document.getElementById('operation-hint');
+    if (id) {
+      badge.textContent = 'UPDATE — PUT';
+      badge.className = 'mode-badge mode-update';
+      hint.className = 'operation-hint update';
+      hint.innerHTML = `ID <strong>${esc(id)}</strong> set — payload will be submitted via `
+        + `<strong>PUT /api/v4/connector/alarm</strong>. Fields filled here override the existing `
+        + `connector; empty fields preserve existing values.`;
+    } else {
+      badge.textContent = 'CREATE — POST';
+      badge.className = 'mode-badge mode-create';
+      hint.className = 'operation-hint';
+      hint.innerHTML = `No ID set — payload will be submitted via `
+        + `<strong>POST /api/v4/connector/alarm</strong> to create a new connector. `
+        + `The API returns the new connector's <code>id</code>; save it here for future updates.`;
+    }
+  }
+
+  // ── Reset All ───────────────────────────────────────────────
+  function resetAll() {
+    if (!confirm('Clear all fields and start over?')) return;
+    document.getElementById('api-key').value = '';
+    document.getElementById('base-url').value = '';
+    document.getElementById('org').value = '';
+    document.getElementById('org-tree-box').style.display = 'none';
+    document.getElementById('connector-name').value = '';
+    document.getElementById('connector-desc').value = '';
+    document.getElementById('connector-id').value = '';
+    const _picker = document.getElementById('connector-picker');
+    if (_picker) { _picker.value = ''; _picker.style.color = '#888'; }
+    document.getElementById('connector-enabled').checked = true;
+    document.querySelectorAll('input[name="notify_on"]').forEach(el => { el.checked = true; });
+    updateModeBadge();
+    ['inc-mp-names','inc-mp-types','inc-policies','inc-groups','inc-tags','inc-targets','inc-alarm-rules',
+     'exc-mp-names','exc-mp-types','exc-policies','exc-groups','exc-tags','exc-targets','exc-alarm-rules']
+      .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    document.querySelectorAll('input[name^="inc_"], input[name^="exc_"]')
+      .forEach(el => { el.checked = false; });
+    document.getElementById('wh-url').value = '';
+    document.getElementById('wh-method').value = 'POST';
+    document.getElementById('wh-ignore-ssl').checked = false;
+    document.getElementById('wh-auth-type').value = 'NONE';
+    document.getElementById('wh-username').value = '';
+    document.getElementById('wh-credential').value = '';
+    updateAuthFields();
+    document.getElementById('headers-list').innerHTML = '';
+    addHeader('Content-Type', 'application/json');
+    document.getElementById('output-card').style.display = 'none';
+    document.getElementById('output-json').textContent = '';
+    document.getElementById('output-multi').innerHTML = '';
+    document.getElementById('gen-status').innerHTML = '';
+    lastOutput = null;
+    _teardownAccordions();
+  }
+
+  // ── Reveal toggle ───────────────────────────────────────────
+  function checkWhUrl(p='') {
+    const urlEl = document.getElementById(p+'wh-url');
+    const warn  = document.getElementById(p+'wh-url-warn');
+    if (!urlEl || !warn) return;
+    warn.style.display = (urlEl.value.trim().startsWith('http://')) ? 'block' : 'none';
+  }
+
+  function toggleReveal(id, btn) {
+    const el = document.getElementById(id);
+    if (el.type === 'password') { el.type = 'text'; btn.textContent = 'Hide'; }
+    else { el.type = 'password'; btn.textContent = 'Show'; }
+  }
+
+  // ── Auth field visibility ───────────────────────────────────
+  function updateAuthFields(p='') {
+    const sel = document.getElementById(p+'wh-auth-type');
+    if (!sel) return;
+    const t = sel.value;
+    document.getElementById(p+'auth-username-wrap').classList.toggle('visible', t === 'BASIC');
+    document.getElementById(p+'auth-cred-wrap').classList.toggle('visible', t === 'BASIC' || t === 'BEARER');
+    document.getElementById(p+'auth-cred-label').textContent = t === 'BEARER' ? 'Token' : 'Password';
+  }
+
+  // ── Dynamic header rows ─────────────────────────────────────
+  function addHeader(key='', value='', p='') {
+    const list = document.getElementById(p+'headers-list');
+    const row = document.createElement('div');
+    row.className = 'dyn-row';
+    row.innerHTML =
+      `<div class="dyn-row-inputs">` +
+        `<div class="dyn-row-fields">` +
+          `<input type="text" class="hdr-key" placeholder="Authorization" list="hdr-key-list" value="${esc(key)}" oninput="validateHeaderKey(this)">` +
+          `<input type="text" class="hdr-val" placeholder="Header value" value="${esc(value)}" oninput="validateHeaderVal(this); this.classList.remove('needs-credential'); _refreshHeaderMaskNote(); _updateGenerateGating()">` +
+        `</div>` +
+        `<div class="field-err hdr-key-err"></div>` +
+      `</div>` +
+      `<button type="button" class="btn-del" onclick="this.closest('.dyn-row').remove(); _refreshHeaderMaskNote(); _updateGenerateGating()" title="Remove">×</button>`;
+    list.appendChild(row);
+    if (key) validateHeaderKey(row.querySelector('.hdr-key'));
+  }
+
+  function validateHeaderKey(input) {
+    const val = input.value;
+    const errEl = input.closest('.dyn-row-inputs').querySelector('.hdr-key-err');
+    if (/[ \t:]/.test(val)) {
+      const chars = [...new Set(val.match(/[ \t:]/g))].map(c => c === ' ' ? 'space' : c === '\t' ? 'tab' : 'colon').join(', ');
+      errEl.textContent = `Invalid header name — remove the ${chars}. Key and value are separate fields.`;
+      errEl.classList.add('visible');
+      input.classList.add('input-err');
+    } else {
+      errEl.classList.remove('visible');
+      input.classList.remove('input-err');
+    }
+  }
+
+  function validateHeaderVal(input) {
+    const errEl = input.closest('.dyn-row-inputs').querySelector('.hdr-key-err');
+    if (/[\r\n]/.test(input.value)) {
+      errEl.textContent = 'Header value must not contain line breaks — CRLF would split the HTTP response.';
+      errEl.classList.add('visible');
+      input.classList.add('input-err');
+    } else {
+      errEl.classList.remove('visible');
+      input.classList.remove('input-err');
+    }
+  }
+
+  function checkNoNewlines(input, warnId) {
+    const hasCrlf = /[\r\n]/.test(input.value);
+    document.getElementById(warnId).classList.toggle('visible', hasCrlf);
+    input.classList.toggle('input-err', hasCrlf);
+  }
+
+  function checkBaseUrl() {
+    const val = document.getElementById('base-url').value.trim();
+    const warn = document.getElementById('base-url-warn');
+    const el = document.getElementById('base-url');
+    let valid = false;
+    if (val.length > 0) {
+      try { const u = new URL(val); valid = u.protocol === 'https:' && u.hostname.length > 0; } catch (_) {}
+    }
+    const showErr = val.length > 0 && !valid;
+    warn.classList.toggle('visible', showErr);
+    el.classList.toggle('input-err', showErr);
+    el.classList.toggle('input-ok', valid);
+  }
+
+  function checkAlarmRules(ta, warnId) {
+    const bad = ta.value.split('\n').map(s => s.trim()).filter(s => s && !/^\d+$/.test(s));
+    document.getElementById(warnId).classList.toggle('visible', bad.length > 0);
+  }
+
+  // ── Collect helpers ─────────────────────────────────────────
+  function lines(id) {
+    return (document.getElementById(id).value || '')
+      .split('\n').map(s => s.trim()).filter(Boolean);
+  }
+  function checked(name) {
+    return [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(el => el.value);
+  }
+
+  // ── Collect form → JSON ─────────────────────────────────────
+  function collectForm() {
+    const authType = document.getElementById('wh-auth-type').value;
+    const headers = [...document.querySelectorAll('#headers-list .dyn-row')]
+      .map(row => ({
+        key:   row.querySelector('.hdr-key').value.trim(),
+        value: row.querySelector('.hdr-val').value.trim(),
+      })).filter(h => h.key);
+
+    const body = {
+      api_key:  document.getElementById('api-key').value.trim(),
+      base_url: document.getElementById('base-url').value.trim(),
+      org:      document.getElementById('org').value.trim(),
+      connector: {
+        id:          document.getElementById('connector-id').value.trim() || null,
+        name:        document.getElementById('connector-name').value.trim(),
+        description: document.getElementById('connector-desc').value.trim(),
+        enabled:     document.getElementById('connector-enabled').checked,
+      },
+      notify_on: checked('notify_on'),
+      include: {
+        severity:                      checked('inc_sev'),
+        noise_filter:                  checked('inc_noise'),
+        monitoring_point_names:        lines('inc-mp-names'),
+        monitoring_point_ids:          lines('inc-mp-ids').map(Number).filter(n => !isNaN(n) && n > 0),
+        monitoring_point_types:        lines('inc-mp-types'),
+        monitoring_policy_names:       lines('inc-policies'),
+        monitoring_policy_ids:         lines('inc-policy-ids').map(Number).filter(n => !isNaN(n) && n > 0),
+        monitoring_policy_group_names: lines('inc-groups'),
+        monitoring_policy_group_ids:   lines('inc-group-ids').map(Number).filter(n => !isNaN(n) && n > 0),
+        tags:                          lines('inc-tags'),
+        targets:                       lines('inc-targets'),
+        alarm_rule_ids:                lines('inc-alarm-rules').map(Number).filter(n => !isNaN(n) && n > 0),
+      },
+      exclude: {
+        severity:                      checked('exc_sev'),
+        noise_filter:                  checked('exc_noise'),
+        monitoring_point_names:        lines('exc-mp-names'),
+        monitoring_point_ids:          lines('exc-mp-ids').map(Number).filter(n => !isNaN(n) && n > 0),
+        monitoring_point_types:        lines('exc-mp-types'),
+        monitoring_policy_names:       lines('exc-policies'),
+        monitoring_policy_ids:         lines('exc-policy-ids').map(Number).filter(n => !isNaN(n) && n > 0),
+        monitoring_policy_group_names: lines('exc-groups'),
+        monitoring_policy_group_ids:   lines('exc-group-ids').map(Number).filter(n => !isNaN(n) && n > 0),
+        tags:                          lines('exc-tags'),
+        targets:                       lines('exc-targets'),
+        alarm_rule_ids:                lines('exc-alarm-rules').map(Number).filter(n => !isNaN(n) && n > 0),
+      },
+    };
+
+    // Build per-org filter overrides from tagged chip selections.
+    const _CHIP_FIELD_MAP = {
+      'inc-mp-names':  ['include', 'monitoring_point_names'],
+      'exc-mp-names':  ['exclude', 'monitoring_point_names'],
+      'inc-mp-types':  ['include', 'monitoring_point_types'],
+      'exc-mp-types':  ['exclude', 'monitoring_point_types'],
+      'inc-policies':  ['include', 'monitoring_policy_names'],
+      'exc-policies':  ['exclude', 'monitoring_policy_names'],
+      'inc-groups':    ['include', 'monitoring_policy_group_names'],
+      'exc-groups':    ['exclude', 'monitoring_policy_group_names'],
+      'inc-targets':   ['include', 'targets'],
+      'exc-targets':   ['exclude', 'targets'],
+      'inc-mp-ids':     ['include', 'monitoring_point_ids'],
+      'exc-mp-ids':     ['exclude', 'monitoring_point_ids'],
+      'inc-policy-ids': ['include', 'monitoring_policy_ids'],
+      'exc-policy-ids': ['exclude', 'monitoring_policy_ids'],
+      'inc-group-ids':  ['include', 'monitoring_policy_group_ids'],
+      'exc-group-ids':  ['exclude', 'monitoring_policy_group_ids'],
+    };
+    const org_filters = {};
+    for (const [fieldId, [section, key]] of Object.entries(_CHIP_FIELD_MAP)) {
+      const st = _chips[fieldId];
+      if (!st) continue;
+      for (const { display, orgId } of st.selected.values()) {
+        if (!orgId) continue;
+        org_filters[orgId] = org_filters[orgId] || {};
+        org_filters[orgId][section] = org_filters[orgId][section] || {};
+        org_filters[orgId][section][key] = org_filters[orgId][section][key] || [];
+        // idOnly chip fields store the ID as a string in `display` — coerce
+        // to a real integer so org_filters matches the shape the backend expects.
+        org_filters[orgId][section][key].push(key.endsWith('_ids') ? Number(display) : display);
+      }
+    }
+    if (Object.keys(org_filters).length) body.org_filters = org_filters;
+
+    return {
+      ...body,
+      webhook: {
+        url:               document.getElementById('wh-url').value.trim(),
+        method:            document.getElementById('wh-method').value,
+        ignore_ssl_errors: document.getElementById('wh-ignore-ssl').checked,
+        auth: {
+          type:     authType,
+          username: authType === 'BASIC'   ? document.getElementById('wh-username').value.trim()   : undefined,
+          token:    authType === 'BEARER'  ? document.getElementById('wh-credential').value.trim() : undefined,
+          password: authType === 'BASIC'   ? document.getElementById('wh-credential').value.trim() : undefined,
+        },
+        headers,
+      },
+    };
+  }
+
+  // ── Generate ────────────────────────────────────────────────
+  async function generatePayload() {
+    const btn    = document.getElementById('generate-btn');
+    const status = document.getElementById('gen-status');
+    btn.disabled = true;
+    status.textContent = '';
+    document.getElementById('org-tree-box').style.display = 'none';
+
+    // ── Multi-org mode ─────────────────────────────────────────
+    if (_confirmedOrgs.length > 1) {
+      let hasError = false;
+      for (const org of _confirmedOrgs) {
+        const p = `a${org.id}-`;
+        if (!document.getElementById(p+'connector-name').value.trim()) {
+          status.style.color = '#c62828';
+          status.textContent = `${org.name}: Connector name is required.`;
+          hasError = true; break;
+        }
+        if (!document.getElementById(p+'wh-url').value.trim()) {
+          status.style.color = '#c62828';
+          status.textContent = `${org.name}: Webhook URL is required.`;
+          hasError = true; break;
+        }
+        const cred = document.getElementById(p+'wh-credential');
+        if (cred && /[\r\n]/.test(cred.value)) {
+          status.style.color = '#c62828';
+          status.textContent = `${org.name}: Token/password must not contain line breaks.`;
+          hasError = true; break;
+        }
+      }
+      if (hasError) { btn.disabled = false; return; }
+
+      status.style.color = '#666';
+      status.textContent = `Building payloads for ${_confirmedOrgs.length} orgs…`;
+
+      try {
+        const results = await Promise.all(_confirmedOrgs.map(async org => {
+          const data = collectOrgForm(org);
+          const resp = await fetch('/api/connector/generate', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data),
+          });
+          const result = await resp.json();
+          if (!resp.ok) throw new Error(`${org.name}: ${result.error || 'Server error'}`);
+          return result;
+        }));
+        const allPayloads = [], allErrors = [];
+        let mode = 'CREATE';
+        results.forEach(r => {
+          allPayloads.push(...(r.payloads || []));
+          allErrors.push(...(r.errors || []));
+          if (r.mode) mode = r.mode;
+        });
+        showOutput({payloads: allPayloads, errors: allErrors, mode});
+        status.innerHTML = '';
+      } catch (err) {
+        status.style.color = '#c62828';
+        status.textContent = err.message;
+      }
+      btn.disabled = false;
+      return;
+    }
+
+    // ── Single-org mode ────────────────────────────────────────
+    const data = collectForm();
+
+    if (!data.connector.name) {
+      status.textContent = 'Connector name is required.';
+      btn.disabled = false; return;
+    }
+    if (!data.webhook.url) {
+      status.textContent = 'Webhook URL is required.';
+      btn.disabled = false; return;
+    }
+
+    const badKeys = [...document.querySelectorAll('#headers-list .hdr-key')]
+      .filter(input => /[ \t:]/.test(input.value));
+    if (badKeys.length) {
+      badKeys.forEach(input => validateHeaderKey(input));
+      status.style.color = '#c62828';
+      status.textContent = `Fix header name error${badKeys.length > 1 ? 's' : ''} above before generating.`;
+      btn.disabled = false; return;
+    }
+    const badVals = [...document.querySelectorAll('#headers-list .hdr-val')]
+      .filter(input => /[\r\n]/.test(input.value));
+    if (badVals.length) {
+      badVals.forEach(input => validateHeaderVal(input));
+      status.style.color = '#c62828';
+      status.textContent = 'Fix header value error above — line breaks not allowed.';
+      btn.disabled = false; return;
+    }
+    const credEl = document.getElementById('wh-credential');
+    if (/[\r\n]/.test(credEl.value)) {
+      checkNoNewlines(credEl, 'wh-credential-warn');
+      status.style.color = '#c62828';
+      status.textContent = 'Token/password must not contain line breaks.';
+      btn.disabled = false; return;
+    }
+
+    status.style.color = '#666';
+    status.textContent = 'Resolving names and building payload…';
+
+    try {
+      const resp = await fetch('/api/connector/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const result = await resp.json();
+
+      if (!resp.ok) {
+        status.style.color = '#c62828';
+        if (result.errors && result.errors.length) {
+          const items = result.errors.map(e => `<li>${esc(e)}</li>`).join('');
+          status.innerHTML = `<ul style="margin:.2rem 0 0 1rem;padding:0">${items}</ul>`;
+        } else {
+          status.textContent = result.error || 'Server error.';
+        }
+        if (result.org_tree) {
+          const box = document.getElementById('org-tree-box');
+          const label = result.org_count != null
+            ? `Accessible organizations (${result.org_count} total):\n`
+            : 'Accessible organizations:\n';
+          box.textContent = label + result.org_tree;
+          box.style.display = 'block';
+        }
+        btn.disabled = false; return;
+      }
+
+      showOutput(result);
+      status.innerHTML = '';
+    } catch (err) {
+      status.style.color = '#c62828';
+      status.textContent = 'Request failed: ' + err.message;
+    }
+    btn.disabled = false;
+  }
+
+  // ── Display output ──────────────────────────────────────────
+  let lastOutput = null;
+
+  function showOutput(result) {
+    lastOutput = result.payloads || [];
+    const card    = document.getElementById('output-card');
+    const pre     = document.getElementById('output-json');
+    const multi   = document.getElementById('output-multi');
+    const toolbar = document.getElementById('output-toolbar-single');
+    const meta    = document.getElementById('output-meta');
+    const errs    = document.getElementById('output-errors');
+
+    const payloads = result.payloads || [];
+    meta.textContent = payloads.length === 1
+      ? `1 org — ${result.mode || 'CREATE'} mode`
+      : `${payloads.length} orgs — ${result.mode || 'CREATE'} mode`;
+
+    const isUpdate = (result.mode === 'PUT');
+
+    function _diffBlock(diffLines) {
+      if (!isUpdate || !diffLines || !diffLines.length) return '';
+      const rows = diffLines.map(l => `<div style="white-space:pre;font-family:monospace;font-size:.8rem">${esc(l)}</div>`).join('');
+      return `<details style="margin:.4rem 0 .6rem" open>
+        <summary style="cursor:pointer;font-size:.82rem;font-weight:600;color:#555">Changes from existing connector (${diffLines.length} field${diffLines.length === 1 ? '' : 's'})</summary>
+        <div style="background:#f4f6f8;border:1px solid #dde1e5;border-radius:4px;padding:.5rem .75rem;margin-top:.3rem">${rows}</div>
+      </details>`;
+    }
+
+    if (payloads.length === 1) {
+      const diffHtml = _diffBlock(payloads[0].diff);
+      pre.textContent = JSON.stringify(payloads[0].payload, null, 2);
+      pre.style.display = 'block';
+      toolbar.style.display = 'flex';
+      multi.style.display = 'none';
+      multi.innerHTML = '';
+      const diffEl = document.getElementById('output-diff-single');
+      if (diffEl) diffEl.innerHTML = diffHtml;
+    } else {
+      pre.style.display = 'none';
+      pre.textContent = '';
+      toolbar.style.display = 'none';
+      multi.style.display = 'block';
+      const baseUrl = (document.getElementById('base-url').value || '').trim().replace(/\/+$/, '');
+      multi.innerHTML = payloads.map((p, i) => {
+        const json = esc(JSON.stringify(p.payload, null, 2));
+        const postUrl = esc(`POST ${baseUrl}/api/v4/connector/alarm?orgId=${p.org_id}`);
+        const diffHtml = _diffBlock(p.diff);
+        return `<details class="org-disclosure">
+          <summary onclick="toggleArrow(this)">
+            <span><span class="disc-arrow">▶</span>${esc(String(p.org_id))}: ${esc(p.org_name)}</span>
+            <span class="disc-toolbar">
+              <button class="tool-btn" onclick="copyOrg(event,${i})">Copy</button>
+              <button class="tool-btn" onclick="downloadOrg(${i})">Download</button>
+            </span>
+          </summary>
+          <div style="font-family:monospace;font-size:.78rem;color:#888;padding:.4rem .6rem .2rem;user-select:all">${postUrl}</div>
+          ${diffHtml}
+          <pre>${json}</pre>
+        </details>`;
+      }).join('');
+    }
+
+    if (result.errors && result.errors.length) {
+      errs.style.display = 'block';
+      errs.innerHTML = '<strong>Resolution warnings:</strong><ul style="margin:.3rem 0 0 1rem">'
+        + result.errors.map(e => `<li>${esc(e)}</li>`).join('')
+        + '</ul>';
+    } else {
+      errs.style.display = 'none';
+    }
+
+    card.style.display = 'block';
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // ── Copy / Download ─────────────────────────────────────────
+  function _copyText(text, btn, originalLabel) {
+    function onSuccess() {
+      btn.textContent = 'Copied';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = originalLabel;
+        btn.classList.remove('copied');
+      }, 1500);
+    }
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(onSuccess).catch(() => _execCopy(text, btn, onSuccess));
+    } else {
+      _execCopy(text, btn, onSuccess);
+    }
+  }
+
+  function _execCopy(text, btn, onSuccess) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try { if (document.execCommand('copy')) onSuccess(); } finally { document.body.removeChild(ta); }
+  }
+
+  function copyOutput(event) {
+    _copyText(document.getElementById('output-json').textContent, event.target, 'Copy JSON');
+  }
+
+  function downloadOutput() {
+    (lastOutput || []).forEach(p => {
+      const blob = new Blob([JSON.stringify(p.payload, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `connector_${p.org_id}_${p.org_name.replace(/[^a-z0-9]/gi, '_')}.json`;
+      a.click();
+    });
+  }
+
+  function copyOrg(evt, idx) {
+    const p = (lastOutput || [])[idx];
+    if (!p) return;
+    _copyText(JSON.stringify(p.payload, null, 2), evt.target, 'Copy');
+  }
+
+  function toggleArrow(summary) {
+    const arrow = summary.querySelector('.disc-arrow');
+    if (!arrow) return;
+    // fires before open state flips, so current open = closing
+    arrow.textContent = summary.closest('details').open ? '▶' : '▼';
+  }
+
+  function downloadOrg(idx) {
+    const p = (lastOutput || [])[idx];
+    if (!p) return;
+    const blob = new Blob([JSON.stringify(p.payload, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `connector_${p.org_id}_${p.org_name.replace(/[^a-z0-9]/gi, '_')}.json`;
+    a.click();
+  }
+
+  // ── Utility ─────────────────────────────────────────────────
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  // ── Org enrichment ──────────────────────────────────────────
+  let _orgData      = null;   // { orgs, roots } after fetch
+  let _enrichTimer  = null;
+  let _orgSelected  = false;  // true once user picks (or single-root auto-selects)
+
+  // ── Field enrichment (MPs, policies, targets) ────────────────
+  let _enrichData   = null;   // { mps, mpTypes, policies, targets } after fetch
+  let _enrichOrgKey = null;   // org field value snapshot at last fetch — change triggers re-fetch
+  let _enrichOrgId  = null;   // primary org ID used for connector picker fetch
+  let _chips        = {};     // fieldId → { selected: Set, items, textInput }
+  let _chipPairs    = {};     // fieldId → partner fieldId (mutual exclusion)
+
+  // Static list of known AppNeta MP types. Org-specific types from the API are merged in at enrichment time.
+  // Known MP types from GET /v4/monitoringPoint.
+  // Reference only — NOT used in the UI chip field (which shows live org types only).
+  // Hardware: m20/m22/m25/m30/m35/m50/m70 microAppliance, r40/r45/r90/r1000 rackAppliance,
+  //           v30/v35-KVM/v35-VMware virtualAppliance
+  // Container: c50 Container, cpe40 Container
+  // Software:  macOS, Windows
+  // Special:   Global Monitoring Point, NetOps Data Collector
+  let _confirmedOrgs = [];    // [{id, name}] — non-empty triggers multi-org accordion mode
+  let _enrichByOrg   = {};    // orgId → {mpItems, mpTypes, polItems, grpItems, targets}
+
+  function _rootOrgsFE(orgs) {
+    const ids = new Set(orgs.map(o => o.id));
+    return orgs.filter(o => !ids.has(o.parentId));
+  }
+
+  function _debounceEnrich() {
+    clearTimeout(_enrichTimer);
+    _orgData     = null;
+    _orgSelected = false;
+    _enrichData   = null;
+    _enrichOrgKey = null;
+    _clearOrgUI();
+    _resetChipFields();
+    _lockEnrichFields();
+    _enrichTimer = setTimeout(_fetchOrgs, 900);
+  }
+
+  async function _fetchOrgs() {
+    const apiKey  = document.getElementById('api-key').value.trim();
+    const baseUrl = document.getElementById('base-url').value.trim();
+    if (!apiKey || !baseUrl.startsWith('https://')) return;
+
+    try {
+      const resp = await fetch('/api/lookup', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({base_url: baseUrl, api_key: apiKey, path: '/v4/organization?limit=1000'}),
+      });
+      const raw = await resp.json();
+      if (!resp.ok || raw.error) { _setOrgStatus('warn', raw.error || 'Could not load organizations.'); return; }
+      const orgs = Array.isArray(raw) ? raw
+                 : (raw.data || raw.items || raw.results || []);
+      if (!orgs.length) { _setOrgStatus('warn', 'No organizations returned — check API key.'); return; }
+      _handleOrgResponse(orgs);
+    } catch (e) {
+      _setOrgStatus('warn', 'Network error loading organizations.');
+    }
+  }
+
+  function _handleOrgResponse(orgs) {
+    const roots = _rootOrgsFE(orgs);
+    _orgData = {orgs, roots};
+
+    const orgInput = document.getElementById('org');
+    orgInput.disabled = false;
+
+    if (roots.length <= 1) {
+      // Single customer hierarchy — proceed automatically
+      _teardownAccordions();
+      const rootOrg = roots.length === 0 ? orgs[0] : roots[0];
+      const childCount = orgs.length - 1;
+      const label = childCount > 0
+        ? `${rootOrg.name} (${rootOrg.id}) + ${childCount} child org${childCount > 1 ? 's' : ''}`
+        : `${rootOrg.name} (${rootOrg.id})`;
+      orgInput.classList.remove('input-orange');
+      orgInput.classList.add('input-ok');
+      orgInput.placeholder = '';
+      orgInput.value = String(rootOrg.id);
+      _setOrgStatus('info', `Loaded: ${label}`);
+      _orgSelected = true;
+      _unlockEnrichFields();
+    } else {
+      // Multiple unrelated hierarchies — require org selection
+      orgInput.classList.add('input-orange');
+      orgInput.placeholder = 'e.g. 12345, 67890, 11223';
+      _setOrgStatus('warn',
+        `${roots.length} unrelated organizations found — select one to continue`);
+      _renderOrgDropdown(orgs, '');
+      _lockEnrichFields();
+    }
+  }
+
+  function _renderOrgDropdown(orgs, filter) {
+    const q    = filter.toLowerCase();
+    const dd   = document.getElementById('org-dropdown');
+    const roots = _orgData ? _orgData.roots : _rootOrgsFE(orgs);
+    const childMap = {};
+    orgs.forEach(o => {
+      if (roots.some(r => r.id === o.id)) return;
+      const p = o.parentId;
+      (childMap[p] = childMap[p] || []).push(o);
+    });
+
+    let html = '';
+    roots.forEach(root => {
+      if (q && !root.name.toLowerCase().includes(q) && !String(root.id).includes(q)) {
+        const kids = (childMap[root.id] || []).filter(
+          c => c.name.toLowerCase().includes(q) || String(c.id).includes(q));
+        if (!kids.length) return;
+      }
+      html += `<div class="org-dd-org" onclick="_selectOrg(${root.id})">${esc(root.name)}<span class="org-dd-id">${root.id}</span></div>`;
+      (childMap[root.id] || []).forEach(child => {
+        if (q && !child.name.toLowerCase().includes(q) && !String(child.id).includes(q)) return;
+        html += `<div class="org-dd-child" onclick="_selectOrg(${child.id})">└─ ${esc(child.name)}<span class="org-dd-id">${child.id}</span></div>`;
+      });
+    });
+
+    dd.innerHTML = html || '<div style="padding:.4rem .75rem;font-size:.8rem;color:#888">No match</div>';
+    dd.style.display = 'block';
+  }
+
+  function _lastToken(val) {
+    const parts = val.split(',');
+    return parts[parts.length - 1].trim();
+  }
+
+  function _replaceLastToken(val, replacement) {
+    const parts = val.split(',');
+    parts[parts.length - 1] = ' ' + replacement;
+    return parts.join(',').replace(/^,\s*/, '');
+  }
+
+  function _lookupOrgByToken(token) {
+    if (!_orgData) return null;
+    const t = token.trim();
+    if (!t) return null;
+    const numId = parseInt(t, 10);
+    if (!isNaN(numId)) return _orgData.orgs.find(o => o.id === numId) || null;
+    const lower = t.toLowerCase();
+    return _orgData.orgs.find(o => o.name.toLowerCase() === lower) || null;
+  }
+
+  function _orgBlur() {
+    // Blur fires before click completes — skip validation if the dropdown is
+    // visible so _selectOrg can handle the click without field interference.
+    const dd = document.getElementById('org-dropdown');
+    if (dd && dd.style.display !== 'none') return;
+    _validateAndConfirmOrgInput();
+  }
+
+  function _validateAndConfirmOrgInput() {
+    const orgInput = document.getElementById('org');
+    const val = orgInput.value.trim();
+    if (!val || !_orgData) return;
+
+    const tokens   = val.split(',').map(s => s.trim()).filter(Boolean);
+    const resolved = tokens.map(t => _lookupOrgByToken(t));
+    const missing  = tokens.filter((t, i) => !resolved[i]);
+
+    if (missing.length) {
+      orgInput.classList.add('input-orange');
+      _setOrgStatus('warn', `Not found in this account: ${missing.join(', ')}`);
+      _orgSelected = false;
+      _lockEnrichFields();
+      return;
+    }
+
+    const ids   = resolved.map(o => String(o.id));
+    const check = _validateEnteredOrgs(ids);
+    if (!check.ok) {
+      orgInput.classList.add('input-orange');
+      _setOrgStatus('warn', check.message);
+      _orgSelected = false;
+      _lockEnrichFields();
+      return;
+    }
+
+    orgInput.value = ids.join(', ');
+    orgInput.classList.remove('input-orange');
+    document.getElementById('org-dropdown').style.display = 'none';
+    const labels = resolved.map(o => `${o.name} (${o.id})`).join(', ');
+    _setOrgStatus('info', `Selected: ${labels}`);
+    _orgSelected = true;
+
+    if (resolved.length > 1) {
+      _buildAccordions(resolved);
+    } else {
+      _teardownAccordions();
+      _unlockEnrichFields();
+    }
+  }
+
+  function _findOrgRoot(orgId, orgs) {
+    const byId = {};
+    orgs.forEach(o => { byId[o.id] = o; });
+    let current = byId[orgId];
+    if (!current) return null;
+    const seen = new Set();
+    while (current.parentId != null && byId[current.parentId]) {
+      if (seen.has(current.id)) break;
+      seen.add(current.id);
+      current = byId[current.parentId];
+    }
+    return current;
+  }
+
+  function _validateEnteredOrgs(ids) {
+    if (!_orgData || ids.length <= 1) return { ok: true };
+    const roots = ids.map(id => _findOrgRoot(parseInt(id, 10), _orgData.orgs));
+    const rootIds = [...new Set(roots.filter(Boolean).map(r => r.id))];
+    if (rootIds.length > 1) {
+      const names = rootIds.map(rid => {
+        const r = _orgData.orgs.find(o => o.id === rid);
+        return r ? `${r.name} (${rid})` : String(rid);
+      });
+      return { ok: false, message: `Orgs must share the same hierarchy. Found separate roots: ${names.join(', ')}` };
+    }
+    return { ok: true };
+  }
+
+  function _onOrgFocus() {
+    if (!_orgData || _orgData.roots.length <= 1) return;
+    if (_orgSelected && document.getElementById('org').value.trim()) return;
+    _renderOrgDropdown(_orgData.orgs, _lastToken(document.getElementById('org').value));
+  }
+
+  function _filterOrgDropdown(val) {
+    if (!_orgData) return;
+    // Single-root: field is optional free-text for child restriction; no dropdown.
+    if (_orgData.roots.length <= 1) return;
+
+    if (!val.trim()) {
+      // Field completely cleared: back to orange + warning + full dropdown + lock.
+      _orgSelected = false;
+      const orgInput = document.getElementById('org');
+      orgInput.classList.add('input-orange');
+      _setOrgStatus('warn',
+        `${_orgData.roots.length} unrelated organizations found — select one to continue`);
+      _lockEnrichFields();
+      _renderOrgDropdown(_orgData.orgs, '');
+      return;
+    }
+
+    // Filter dropdown by whatever comes after the last comma.
+    _renderOrgDropdown(_orgData.orgs, _lastToken(val));
+  }
+
+  function _selectOrg(orgId) {
+    const org = (_orgData.orgs || []).find(o => o.id === orgId);
+    if (!org) return;
+    const orgInput = document.getElementById('org');
+    orgInput.value = _replaceLastToken(orgInput.value, String(orgId));
+
+    const selected = orgInput.value.split(',').map(s => s.trim()).filter(Boolean);
+    const check = _validateEnteredOrgs(selected);
+    if (!check.ok) {
+      orgInput.classList.add('input-orange');
+      _setOrgStatus('warn', check.message);
+      _orgSelected = false;
+      _lockEnrichFields();
+      _renderOrgDropdown(_orgData.orgs, '');
+      orgInput.focus();
+      return;
+    }
+
+    orgInput.classList.remove('input-orange');
+    const labels = selected.map(id => {
+      const o = (_orgData.orgs || []).find(o => String(o.id) === id);
+      return o ? `${o.name} (${o.id})` : id;
+    });
+    _setOrgStatus('info', `Selected: ${labels.join(', ')}`);
+
+    _orgSelected = true;
+    _unlockEnrichFields();
+
+    // Keep dropdown open — user may want to add more.
+    _renderOrgDropdown(_orgData.orgs, '');
+    orgInput.focus();
+  }
+
+  function _lockEnrichFields() {
+    document.getElementById('enrich-wrap').classList.add('enrich-locked');
+  }
+
+  function _unlockEnrichFields() {
+    document.getElementById('enrich-wrap').classList.remove('enrich-locked');
+    const orgKey = document.getElementById('org').value.trim();
+    if (_enrichData && orgKey === _enrichOrgKey) return; // same org selection, already loaded
+    if (_enrichData) _resetChipFields();                 // org changed — tear down stale chips
+    _enrichData   = null;
+    _enrichOrgKey = orgKey;
+    _fetchEnrichmentData();
+  }
+
+  // ── Field enrichment: MP names, MP types, policy names, targets ──
+
+  function _toList(raw) {
+    return Array.isArray(raw) ? raw : (raw.data || raw.items || raw.results || []);
+  }
+
+  async function _fetchEnrichmentData() {
+    const apiKey  = document.getElementById('api-key').value.trim();
+    const baseUrl = document.getElementById('base-url').value.trim();
+    if (!apiKey || !baseUrl.startsWith('https://')) return;
+
+    const orgField = document.getElementById('org').value.trim();
+    const typedIds = orgField.split(',').map(s => s.trim()).filter(Boolean);
+    const orgIds   = typedIds.length
+      ? typedIds
+      : (_orgData && _orgData.roots.length ? [String(_orgData.roots[0].id)] : []);
+
+    const post = path => fetch('/api/lookup', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({base_url: baseUrl, api_key: apiKey, path}),
+    }).then(r => r.json());
+
+    // Fetch per org independently — a failure for one org shouldn't block the others.
+    const fetchOne = id => Promise.all([
+      post(`/v4/monitoringPoint?limit=1000&orgId=${id}`),
+      post(`/v4/monitoringPolicy?limit=1000&orgId=${id}`),
+      post(`/v4/monitoringPolicyGroup?limit=1000&orgId=${id}`),
+    ]).catch(e => { console.warn(`Fetch failed for org ${id}:`, e); return [null, null, null]; });
+
+    const fetchAll = orgIds.length
+      ? orgIds.map(fetchOne)
+      : [Promise.all([
+          post('/v4/monitoringPoint?limit=1000'),
+          post('/v4/monitoringPolicy?limit=1000'),
+          post('/v4/monitoringPolicyGroup?limit=1000'),
+        ])];
+
+    const results = await Promise.all(fetchAll);
+
+    const allMps = [], allPolicies = [], allGroups = [];
+    const mpSeen = new Set(), polSeen = new Set(), grpSeen = new Set();
+    const orgStats = [];
+    const multiOrg = orgIds.length > 1;
+
+    for (let i = 0; i < results.length; i++) {
+      const [mpJson, polJson, grpJson] = results[i] || [null, null, null];
+      const orgId  = orgIds[i] || '';
+      const orgObj = _orgData ? _orgData.orgs.find(o => String(o.id) === orgId) : null;
+      const orgName = orgObj ? orgObj.name : (orgId || 'unknown');
+
+      if (!mpJson || mpJson.error) {
+        orgStats.push(`${orgName}: error — ${(mpJson && mpJson.error) || 'fetch failed'}`);
+        continue;
+      }
+
+      const tag = obj => ({...obj, _orgName: multiOrg ? orgName : null, _orgId: multiOrg ? orgId : null});
+
+      const newMps  = _toList(mpJson).filter(m => m && m.name && !mpSeen.has(m.name));
+      const newPols = (polJson && !polJson.error)
+        ? _toList(polJson).filter(p => p && p.name && !polSeen.has(p.name)) : [];
+      const newGrps = (grpJson && !grpJson.error)
+        ? _toList(grpJson).filter(g => g && g.name && !grpSeen.has(g.name)) : [];
+
+      newMps.forEach(m  => { mpSeen.add(m.name);  allMps.push(tag(m)); });
+      newPols.forEach(p => { polSeen.add(p.name); allPolicies.push(tag(p)); });
+      newGrps.forEach(g => { grpSeen.add(g.name); allGroups.push(tag(g)); });
+      orgStats.push(`${orgName}: ${newMps.length} MP${newMps.length !== 1 ? 's' : ''}`);
+    }
+
+    if (multiOrg) {
+      const st = document.getElementById('org-status');
+      if (st && st.className === 'status-info') st.textContent += ' — ' + orgStats.join(', ');
+    }
+
+    // Build typed arrays preserving org context for grouped display.
+    const typeSeen = new Set();
+    const mpTypes = [];
+    allMps.forEach(m => {
+      if (!m.type) return;
+      const key = (m._orgId || '') + ':' + m.type;
+      if (!typeSeen.has(key)) { typeSeen.add(key); mpTypes.push({name: m.type, orgName: m._orgName, orgId: m._orgId}); }
+    });
+
+    // Extract target strings from a policy object — AppNeta API response shape varies.
+    // Log the first policy so the console shows the actual field names if targets stay empty.
+
+    // extracted to module scope — see _policyTargets below
+
+    const targetSeen = new Set();
+    const targets = [];
+    allPolicies.forEach(pol => {
+      _policyTargets(pol).forEach(t => {
+        const key = (pol._orgId || '') + ':' + t;
+        if (!targetSeen.has(key)) { targetSeen.add(key); targets.push({name: t, orgName: pol._orgName, orgId: pol._orgId}); }
+      });
+    });
+
+    _enrichData  = {mps: allMps, mpTypes, policies: allPolicies, groups: allGroups, targets};
+    _enrichOrgId = orgIds[0] || null;
+    _initAllChipFields();
+  }
+
+  function _checkIncludeOrWarning(prefix) {
+    const p = prefix || '';
+    let populated = 0;
+    ['inc-mp-names','inc-mp-types','inc-policies','inc-groups','inc-targets'].forEach(f => {
+      if ((_chips[p + f]?.selected?.size || 0) > 0) populated++;
+    });
+    ['inc-tags','inc-alarm-rules'].forEach(f => {
+      const el = document.getElementById(p + f);
+      if (el && el.value.trim()) populated++;
+    });
+    if (document.querySelector(`input[name="${p}inc_sev"]:checked`)) populated++;
+    if (document.querySelector(`input[name="${p}inc_noise"]:checked`)) populated++;
+    const warn = document.getElementById(p + 'inc-or-warning');
+    if (warn) warn.style.display = populated >= 2 ? '' : 'none';
+  }
+
+  function _initMpTypeChipField(fieldId, apiTypes) {
+    const items = (apiTypes || []).map(({name}) => ({name, orgName: null, orgId: null, mpId: null}));
+    _initChipField(fieldId, items, {allowGlob: true});
+  }
+
+  function _initAllChipFields() {
+    if (!_enrichData) return;
+    const {mps, mpTypes, policies, groups, targets} = _enrichData;
+    const mpItems  = mps.map(m     => ({name: m.name, orgName: m._orgName, orgId: m._orgId, mpId: m.globalId || m.id || null}));
+    const polItems = policies.map(p => ({name: p.name, orgName: p._orgName, orgId: p._orgId, mpId: p.id || null}));
+    const grpItems = groups.map(g   => ({name: g.name, orgName: g._orgName, orgId: g._orgId, mpId: g.id || null}));
+
+    _initChipField('inc-mp-names',  mpItems,  {allowGlob: true});
+    _initChipField('exc-mp-names',  mpItems,  {allowGlob: true});
+    _initMpTypeChipField('inc-mp-types', mpTypes);
+    _initMpTypeChipField('exc-mp-types', mpTypes);
+    _initChipField('inc-policies',  polItems);
+    _initChipField('exc-policies',  polItems);
+    _initChipField('inc-groups',    grpItems);
+    _initChipField('exc-groups',    grpItems);
+    _initChipField('inc-targets',   targets,  {allowGlob: true});
+    _initChipField('exc-targets',   targets,  {allowGlob: true});
+
+    // Dedicated numeric-only ID fields — same underlying items (already
+    // carry mpId), rendered in ID-first mode. These are separate fields
+    // from *-names so the intent (an ID) is explicit.
+    _initChipField('inc-mp-ids',     mpItems,  {idOnly: true});
+    _initChipField('exc-mp-ids',     mpItems,  {idOnly: true});
+    _initChipField('inc-policy-ids', polItems, {idOnly: true});
+    _initChipField('exc-policy-ids', polItems, {idOnly: true});
+    _initChipField('inc-group-ids',  grpItems, {idOnly: true});
+    _initChipField('exc-group-ids',  grpItems, {idOnly: true});
+
+    ['mp-names','mp-types','policies','groups','targets','mp-ids','policy-ids','group-ids'].forEach(f => {
+      _chipPairs[`inc-${f}`] = `exc-${f}`;
+      _chipPairs[`exc-${f}`] = `inc-${f}`;
+    });
+    _populateConnectorPicker();
+  }
+
+  // ── Connector picker (PUT auto-population) ──────────────────
+
+  async function _populateConnectorPicker() {
+    const picker  = document.getElementById('connector-picker');
+    const apiKey  = document.getElementById('api-key').value.trim();
+    const baseUrl = document.getElementById('base-url').value.trim();
+    if (!picker || !apiKey || !baseUrl || !_enrichOrgId) return;
+    try {
+      const r = await fetch('/api/get/connector', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({base_url: baseUrl, api_key: apiKey, org_id: _enrichOrgId}),
+      });
+      const data = await r.json();
+      if (data.error || !Array.isArray(data.connectors)) return;
+      while (picker.options.length > 1) picker.remove(1);
+      data.connectors.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = String(c.id);
+        opt.textContent = `${c.id} | ${c.name}`;
+        picker.appendChild(opt);
+      });
+    } catch (e) { console.warn('connector picker fetch failed:', e); }
+  }
+
+  function onConnectorPickerChange() {
+    const picker   = document.getElementById('connector-picker');
+    const hidden   = document.getElementById('connector-id');
+    const statusEl = document.getElementById('connector-picker-status');
+    const val      = picker.value;
+    picker.style.color = val ? '' : '#888';
+    hidden.value = val;
+    updateModeBadge();
+    if (val) {
+      _loadConnectorDetail(val);
+    } else {
+      // Switched back to POST — keep form values as a template, but flag the
+      // retained filters red so it's obvious they're carried over and still live.
+      if (statusEl) { statusEl.textContent = ''; statusEl.style.display = 'none'; }
+      _applyCarriedOverHighlight();
+      _openAdvancedIfPopulated('inc');
+      _openAdvancedIfPopulated('exc');
+      _updateGenerateGating();
+    }
+  }
+
+  // ── PUT-mode UX helpers: masking gate + carried-over highlight ──
+
+  const _CHIP_FILTER_FIELDS = [
+    'inc-mp-names','inc-mp-types','inc-policies','inc-groups','inc-targets',
+    'inc-mp-ids','inc-policy-ids','inc-group-ids',
+    'exc-mp-names','exc-mp-types','exc-policies','exc-groups','exc-targets',
+    'exc-mp-ids','exc-policy-ids','exc-group-ids',
+  ];
+  const _TEXT_FILTER_FIELDS  = ['inc-tags','exc-tags','inc-alarm-rules','exc-alarm-rules'];
+  const _CHECK_FILTER_GROUPS = ['inc_sev','inc_noise','exc_sev','exc_noise'];
+  const _ADV_FIELDS          = ['targets','alarm-rules','mp-ids','policy-ids','group-ids'];
+
+  function _fieldHasContent(id) {
+    const st = _chips[id];
+    if (st) return (st.selected?.size || 0) > 0;
+    const el = document.getElementById(id);
+    return !!(el && el.value && el.value.trim());
+  }
+
+  function _refreshHeaderMaskNote() {
+    const note = document.getElementById('headers-mask-note');
+    if (!note) return;
+    note.style.display =
+      document.querySelector('#headers-list .hdr-val.needs-credential') ? '' : 'none';
+  }
+
+  // Gate Generate only in UPDATE/PUT mode: block while any masked field
+  // (credential or header value) is still empty.
+  function _updateGenerateGating() {
+    const btn = document.getElementById('generate-btn');
+    if (!btn) return;
+    const inUpdate = !!(document.getElementById('connector-id') || {}).value;
+    if (!inUpdate) { btn.disabled = false; return; }
+    btn.disabled = [...document.querySelectorAll('.needs-credential')]
+      .some(el => !(el.value && el.value.trim()));
+  }
+
+  // Informational red on a carried-over filter element; clears on first interaction.
+  function _flagCarriedOver(el) {
+    if (!el || el.classList.contains('carried-over')) return;
+    el.classList.add('carried-over');
+    const clear = () => el.classList.remove('carried-over');
+    el.addEventListener('input',  clear, {once: true});
+    el.addEventListener('change', clear, {once: true});
+    el.addEventListener('click',  clear, {once: true});
+  }
+
+  function _applyCarriedOverHighlight() {
+    _CHIP_FILTER_FIELDS.forEach(id => {
+      if (_fieldHasContent(id)) _flagCarriedOver(document.getElementById('ci-input-' + id));
+    });
+    _TEXT_FILTER_FIELDS.forEach(id => {
+      if (_fieldHasContent(id)) _flagCarriedOver(document.getElementById(id));
+    });
+    _CHECK_FILTER_GROUPS.forEach(name => {
+      document.querySelectorAll(`input[name="${name}"]:checked`).forEach(cb => {
+        _flagCarriedOver(cb.closest('label.check-item'));
+      });
+    });
+  }
+
+  function _openAdvancedIfPopulated(side) {
+    if (!_ADV_FIELDS.some(f => _fieldHasContent(`${side}-${f}`))) return;
+    const anchor  = document.getElementById(`${side}-alarm-rules`);
+    const details = anchor && anchor.closest('details.adv');
+    if (details) details.open = true;
+  }
+
+  function _clearAllCarriedOver() {
+    document.querySelectorAll('.carried-over').forEach(el => el.classList.remove('carried-over'));
+  }
+
+  async function _loadConnectorDetail(connectorId) {
+    const apiKey  = document.getElementById('api-key').value.trim();
+    const baseUrl = document.getElementById('base-url').value.trim();
+    const statusEl = document.getElementById('connector-picker-status');
+    if (!apiKey || !baseUrl || !_enrichOrgId) return;
+    if (statusEl) { statusEl.textContent = 'Loading connector data…'; statusEl.style.display = ''; }
+    try {
+      const r = await fetch('/api/get/connector/detail', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({base_url: baseUrl, api_key: apiKey, org_id: _enrichOrgId, connector_id: Number(connectorId)}),
+      });
+      const data = await r.json();
+      if (data.error) {
+        if (statusEl) { statusEl.textContent = `Error: ${data.error}`; statusEl.style.color = '#c62828'; }
+        return;
+      }
+      _populateFormFromConnector(data.connector);
+      if (statusEl) { statusEl.textContent = 'Form populated from existing connector — credential fields are masked by AppNeta and must be re-entered.'; statusEl.style.color = '#888'; }
+    } catch (e) {
+      console.warn('connector detail fetch failed:', e);
+      if (statusEl) { statusEl.textContent = 'Failed to load connector data.'; statusEl.style.color = '#c62828'; }
+    }
+  }
+
+  function _clearChipField(fieldId) {
+    const state = _chips[fieldId];
+    if (!state) return;
+    [...state.selected.keys()].forEach(k => _removeChip(fieldId, k));
+  }
+
+  function _populateFilterSection(filter, side) {
+    const sevName   = `${side}_sev`;
+    const noiseName = `${side}_noise`;
+    if (Array.isArray(filter.severity)) {
+      document.querySelectorAll(`input[name="${sevName}"]`).forEach(el => {
+        el.checked = filter.severity.includes(el.value);
+      });
+    }
+    if (Array.isArray(filter.noiseFilter)) {
+      document.querySelectorAll(`input[name="${noiseName}"]`).forEach(el => {
+        el.checked = filter.noiseFilter.includes(el.value);
+      });
+    }
+    const mpNameField = `${side}-mp-names`;
+    _clearChipField(mpNameField);
+    (filter.monitoringPointName || []).forEach(v => _addChip(mpNameField, v));
+    // Reverse-lookup MP IDs → names via enrichment data
+    (filter.monitoringPointId || []).forEach(id => {
+      const mp = (_enrichData?.mps || []).find(m => (m.globalId || m.id) === id);
+      if (mp) _addChip(mpNameField, mp.name);
+    });
+
+    const mpTypeField = `${side}-mp-types`;
+    _clearChipField(mpTypeField);
+    (filter.monitoringPointType || []).forEach(v => _addChip(mpTypeField, v));
+
+    const polField = `${side}-policies`;
+    _clearChipField(polField);
+    (filter.monitoringPolicyId || []).forEach(id => {
+      const pol = (_enrichData?.policies || []).find(p => (p.globalId || p.id) === id);
+      if (pol) _addChip(polField, pol.name);
+    });
+
+    const grpField = `${side}-groups`;
+    _clearChipField(grpField);
+    (filter.monitoringPolicyGroupId || []).forEach(id => {
+      const grp = (_enrichData?.groups || []).find(g => (g.globalId || g.id) === id);
+      if (grp) _addChip(grpField, grp.name);
+    });
+
+    const tgtField = `${side}-targets`;
+    _clearChipField(tgtField);
+    (filter.target || []).forEach(v => _addChip(tgtField, v));
+
+    const tagEl = document.getElementById(`${side}-tags`);
+    if (tagEl && Array.isArray(filter.tag)) {
+      tagEl.value = filter.tag.map(t => {
+        const cat = t.category || '';
+        const val = t.value    || '';
+        if (cat && val) return `${cat}:${val}`;
+        if (cat)        return cat;
+        return `:${val}`;
+      }).join('\n');
+    }
+
+    const arEl = document.getElementById(`${side}-alarm-rules`);
+    if (arEl && Array.isArray(filter.alarmRuleId)) {
+      arEl.value = filter.alarmRuleId.join('\n');
+    }
+    _checkIncludeOrWarning('');
+  }
+
+  function _populateFormFromConnector(c) {
+    if (!c) return;
+    // Loading a connector is a fresh UPDATE — drop any carried-over flags left
+    // from a prior PUT→POST switch so stale red doesn't bleed onto new values.
+    _clearAllCarriedOver();
+    // Top-level connector fields
+    if (c.name        !== undefined) document.getElementById('connector-name').value    = c.name        || '';
+    if (c.description !== undefined) document.getElementById('connector-desc').value    = c.description || '';
+    if (c.enabled     !== undefined) document.getElementById('connector-enabled').checked = c.enabled !== false;
+    if (Array.isArray(c.notifyOn)) {
+      document.querySelectorAll('input[name="notify_on"]').forEach(el => {
+        el.checked = c.notifyOn.includes(el.value);
+      });
+    }
+    // Webhook (first connector in array)
+    const wh = Array.isArray(c.connectors) ? c.connectors[0] : null;
+    if (wh) {
+      if (wh.url)    document.getElementById('wh-url').value    = wh.url;
+      if (wh.method) document.getElementById('wh-method').value = wh.method;
+      document.getElementById('wh-ignore-ssl').checked = !!wh.ignoreSSLErrors;
+      checkWhUrl();
+      const auth = wh.auth || {};
+      const authType = auth.type || 'NONE';
+      document.getElementById('wh-auth-type').value = authType;
+      if (authType === 'BASIC') document.getElementById('wh-username').value = auth.username || '';
+      // auth.password / auth.token are masked by AppNeta — leave field empty but flag it red
+      const credEl = document.getElementById('wh-credential');
+      if (credEl) {
+        credEl.value = '';
+        const masked = /^\*+$/.test(auth.password || '') || /^\*+$/.test(auth.token || '');
+        credEl.classList.toggle('needs-credential', masked && authType !== 'NONE');
+      }
+      updateAuthFields();
+      const hlist = document.getElementById('headers-list');
+      hlist.innerHTML = '';
+      (wh.headers || []).forEach(h => {
+        if (!h.key) return;
+        // AppNeta masks secret header values as all-asterisks — clear and red-flag
+        // rather than presenting a useless '*'; user must re-enter before generating.
+        const masked = /^\*+$/.test(h.value || '');
+        addHeader(h.key, masked ? '' : (h.value || ''));
+        if (masked) {
+          const valEl = hlist.lastElementChild && hlist.lastElementChild.querySelector('.hdr-val');
+          if (valEl) valEl.classList.add('needs-credential');
+        }
+      });
+      _refreshHeaderMaskNote();
+    }
+    // Filters
+    _populateFilterSection(c.include || {}, 'inc');
+    _populateFilterSection(c.exclude || {}, 'exc');
+    // Reveal any populated Advanced sections so loaded/masked values are visible
+    _openAdvancedIfPopulated('inc');
+    _openAdvancedIfPopulated('exc');
+    _updateGenerateGating();
+  }
+
+  function _resetChipFields() {
+    Object.keys(_chips).forEach(fieldId => {
+      const wrap = document.getElementById('ci-wrap-' + fieldId);
+      if (wrap) wrap.remove();
+      const ta = document.getElementById(fieldId);
+      if (ta) { ta.style.display = ''; ta.value = ''; }
+    });
+    _chips = {};
+    _chipPairs = {};
+    // Reset picker when chips are torn down (org change)
+    const picker = document.getElementById('connector-picker');
+    if (picker) {
+      while (picker.options.length > 1) picker.remove(1);
+      picker.value = '';
+      picker.style.color = '#888';
+    }
+    const hidden = document.getElementById('connector-id');
+    if (hidden) hidden.value = '';
+    const statusEl = document.getElementById('connector-picker-status');
+    if (statusEl) { statusEl.textContent = ''; statusEl.style.display = 'none'; }
+    _enrichOrgId = null;
+    updateModeBadge();
+  }
+
+  function _hasGlobChars(s) { return /[*?!+]/.test(s); }
+
+  function _initChipField(fieldId, items, opts) {
+    const textarea = document.getElementById(fieldId);
+    if (!textarea || document.getElementById('ci-wrap-' + fieldId)) return;
+
+    const existing = textarea.value.split('\n').map(s => s.trim()).filter(Boolean);
+
+    const wrap = document.createElement('div');
+    wrap.className = 'chip-input-wrap';
+    wrap.id = 'ci-wrap-' + fieldId;
+
+    const inputBox = document.createElement('div');
+    inputBox.className = 'chip-input';
+    inputBox.id = 'ci-input-' + fieldId;
+    inputBox.addEventListener('click', () => ti.focus());
+
+    const idOnly = !!(opts && opts.idOnly);
+
+    const ti = document.createElement('input');
+    ti.type = 'text';
+    ti.placeholder = items.length ? (idOnly ? 'Type an ID…' : 'Type to filter…') : '';
+    ti.autocomplete = 'off';
+    if (idOnly) ti.inputMode = 'numeric';
+    inputBox.appendChild(ti);
+
+    const dd = document.createElement('div');
+    dd.className = 'chip-dd';
+    dd.id = 'ci-dd-' + fieldId;
+
+    wrap.appendChild(inputBox);
+    wrap.appendChild(dd);
+    textarea.parentNode.insertBefore(wrap, textarea);
+    textarea.style.display = 'none';
+
+    const state = {selected: new Map(), items, textInput: ti, allowGlob: !!(opts && opts.allowGlob), idOnly};
+    _chips[fieldId] = state;
+
+    existing.forEach(v => { state.selected.set(v, { display: v, orgId: null }); _addChipDOM(fieldId, v, v); });
+    _syncChipTextarea(fieldId);
+
+    // idOnly fields: strip non-digit characters as the user types, so the
+    // stored value can never be anything but a bare integer. Dropdown
+    // matching (in _filterChipDd) still checks the ID against the query.
+    ti.addEventListener('input', () => {
+      if (idOnly) {
+        const digitsOnly = ti.value.replace(/\D/g, '');
+        if (digitsOnly !== ti.value) ti.value = digitsOnly;
+      }
+      _filterChipDd(fieldId, ti.value);
+    });
+    ti.addEventListener('focus',   () => _filterChipDd(fieldId, ti.value));
+    ti.addEventListener('keydown', e => {
+      if (e.key === 'Backspace' && ti.value === '') _removeLastChip(fieldId);
+      if (e.key === 'Escape') document.getElementById('ci-dd-' + fieldId).style.display = 'none';
+      if (e.key === 'Enter' && ti.value.trim()) {
+        e.preventDefault();
+        const v = ti.value.trim();
+        if (!idOnly || /^\d+$/.test(v)) _addChip(fieldId, v);
+      }
+    });
+    ti.addEventListener('paste', e => {
+      e.preventDefault();
+      const text = (e.clipboardData || window.clipboardData).getData('text');
+      text.split(/[,\n]+/).map(s => s.trim()).filter(Boolean)
+        .filter(token => !idOnly || /^\d+$/.test(token))
+        .forEach(token => _addChip(fieldId, token));
+    });
+  }
+
+  function _addChipDOM(fieldId, key, display) {
+    const inputBox = document.getElementById('ci-input-' + fieldId);
+    if (!inputBox) return;
+    const ti   = _chips[fieldId].textInput;
+    const chip = document.createElement('span');
+    chip.className = 'chip' + (_chips[fieldId]?.allowGlob && _hasGlobChars(display) ? ' chip-glob' : '');
+    chip.dataset.key = key;
+    const lbl = document.createElement('span');
+    lbl.className = 'chip-label';
+    lbl.textContent = display;
+    const btn = document.createElement('button');
+    btn.className = 'chip-x';
+    btn.type = 'button';
+    btn.textContent = '×';
+    btn.addEventListener('click', e => { e.stopPropagation(); _removeChip(fieldId, key); });
+    chip.appendChild(lbl);
+    chip.appendChild(btn);
+    inputBox.insertBefore(chip, ti);
+  }
+
+  function _addChip(fieldId, value, orgId) {
+    const state = _chips[fieldId];
+    if (!state) return;
+    const key = orgId ? `${orgId}:${value}` : value;
+    if (state.selected.has(key)) return;
+    state.selected.set(key, { display: value, orgId: orgId || null });
+    _addChipDOM(fieldId, key, value);
+    _syncChipTextarea(fieldId);
+    _syncChipExclusion(fieldId);
+    state.textInput.value = '';
+    _filterChipDd(fieldId, '');
+    state.textInput.focus();
+  }
+
+  function _removeChip(fieldId, key) {
+    const state = _chips[fieldId];
+    if (!state) return;
+    state.selected.delete(key);
+    const inputBox = document.getElementById('ci-input-' + fieldId);
+    if (inputBox) {
+      const chip = [...inputBox.querySelectorAll('.chip')].find(c => c.dataset.key === key);
+      if (chip) chip.remove();
+    }
+    _syncChipTextarea(fieldId);
+    _filterChipDd(fieldId, state.textInput.value);
+  }
+
+  function _removeLastChip(fieldId) {
+    const state = _chips[fieldId];
+    if (!state || state.selected.size === 0) return;
+    const last = [...state.selected.keys()][state.selected.size - 1];
+    _removeChip(fieldId, last);
+  }
+
+  function _syncChipExclusion(editedId) {
+    const otherId = _chipPairs[editedId];
+    if (!otherId) return;
+    const editedState = _chips[editedId];
+    const otherState  = _chips[otherId];
+    if (!editedState || !otherState) return;
+    for (const key of [...editedState.selected.keys()]) {
+      if (otherState.selected.has(key)) _removeChip(otherId, key);
+    }
+  }
+
+  function _syncChipTextarea(fieldId) {
+    const state    = _chips[fieldId];
+    const textarea = document.getElementById(fieldId);
+    if (!state || !textarea) return;
+    // Only untagged (manually entered) values go in the shared textarea.
+    // Org-tagged values are routed per-org at submission time via org_filters.
+    const global = [...state.selected.values()]
+      .filter(({ orgId }) => !orgId)
+      .map(({ display }) => display);
+    textarea.value = global.join('\n');
+    if (fieldId.includes('-inc-') || fieldId.startsWith('inc-')) {
+      const prefix = fieldId.includes('-inc-') ? fieldId.slice(0, fieldId.indexOf('-inc-') + 1) : '';
+      _checkIncludeOrWarning(prefix);
+    }
+  }
+
+  function _filterChipDd(fieldId, filter) {
+    const state = _chips[fieldId];
+    const dd    = document.getElementById('ci-dd-' + fieldId);
+    if (!state || !dd) return;
+    const q = filter.toLowerCase();
+    const matches = state.items.filter(item => {
+      const idStr = item.mpId != null ? String(item.mpId) : '';
+      if (state.idOnly && !idStr) return false; // idOnly field: skip items with no known ID
+      const key = state.idOnly
+        ? (item.orgId ? `${item.orgId}:${idStr}` : idStr)
+        : (item.orgId ? `${item.orgId}:${item.name}` : item.name);
+      const matchesQuery = !q || (state.idOnly ? idStr.includes(q) : item.name.toLowerCase().includes(q));
+      return !state.selected.has(key) && matchesQuery;
+    });
+    dd.innerHTML = '';
+    if (!matches.length) {
+      const msg = document.createElement('div');
+      msg.className = 'chip-dd-msg';
+      if (state.idOnly && q && /^\d+$/.test(q)) {
+        msg.textContent = `↵  Add raw ID ${q}`;
+        msg.style.cssText = 'color:#bf360c;font-style:italic;font-family:monospace';
+      } else if (state.allowGlob && q && _hasGlobChars(q)) {
+        msg.textContent = '↵  Add as glob pattern';
+        msg.style.cssText = 'color:#bf360c;font-style:italic;font-family:monospace';
+      } else {
+        msg.textContent = state.items.length ? 'No match' : 'No data available';
+      }
+      dd.appendChild(msg);
+      dd.style.display = 'block';
+      return;
+    }
+
+    // When unfiltered, cap to avoid rendering thousands of DOM nodes.
+    // When the user has typed anything, show all matches — the filter already
+    // narrows the list and the 151st result must be reachable.
+    const cap = q ? Infinity : 60;
+
+    const makeItem = (item, indented) => {
+      const div = document.createElement('div');
+      div.className = 'chip-dd-item' + (indented ? ' indented' : '');
+      if (state.idOnly) {
+        // ID is the value being selected here — show it first/primary, name
+        // as a secondary hint so the user can confirm they picked the right MP.
+        div.style.cssText = 'display:flex;justify-content:space-between;align-items:baseline;gap:.5rem';
+        const id = document.createElement('span');
+        id.textContent = item.mpId;
+        id.style.cssText = 'font-family:monospace;font-weight:600';
+        const nm = document.createElement('span');
+        nm.textContent = item.name;
+        nm.style.cssText = 'font-size:.72rem;color:#999;flex-shrink:0';
+        div.appendChild(id);
+        div.appendChild(nm);
+        div.addEventListener('mousedown', e => { e.preventDefault(); _addChip(fieldId, String(item.mpId), item.orgId); });
+      } else if (item.mpId) {
+        div.style.cssText = 'display:flex;justify-content:space-between;align-items:baseline;gap:.5rem';
+        const nm = document.createElement('span');
+        nm.textContent = item.name;
+        const id = document.createElement('span');
+        id.textContent = item.mpId;
+        id.style.cssText = 'font-size:.72rem;color:#999;flex-shrink:0;font-family:monospace';
+        div.appendChild(nm);
+        div.appendChild(id);
+        div.addEventListener('mousedown', e => { e.preventDefault(); _addChip(fieldId, item.name, item.orgId); });
+      } else {
+        div.textContent = item.name;
+        div.addEventListener('mousedown', e => { e.preventDefault(); _addChip(fieldId, item.name, item.orgId); });
+      }
+      return div;
+    };
+
+    const addFooter = (shown, total) => {
+      if (shown >= total) return;
+      const foot = document.createElement('div');
+      foot.className = 'chip-dd-msg';
+      foot.textContent = `Showing ${shown} of ${total} — type to narrow`;
+      dd.appendChild(foot);
+    };
+
+    // Group by org when items carry org context; flat list otherwise.
+    const hasOrgs = matches.some(item => item.orgId);
+    if (hasOrgs) {
+      const visible = matches.slice(0, cap);
+      const groups = new Map();
+      visible.forEach(item => {
+        const key = item.orgId || '';
+        if (!groups.has(key)) groups.set(key, {orgName: item.orgName, items: []});
+        groups.get(key).items.push(item);
+      });
+      for (const [orgId, group] of groups) {
+        const hdr = document.createElement('div');
+        hdr.className = 'chip-dd-group';
+        hdr.textContent = group.orgName || orgId;
+        const idSpan = document.createElement('span');
+        idSpan.className = 'chip-dd-group-id';
+        idSpan.textContent = `(${orgId})`;
+        hdr.appendChild(idSpan);
+        dd.appendChild(hdr);
+        group.items.forEach(item => dd.appendChild(makeItem(item, true)));
+      }
+      addFooter(visible.length, matches.length);
+    } else {
+      matches.slice(0, cap).forEach(item => dd.appendChild(makeItem(item, false)));
+      addFooter(Math.min(cap, matches.length), matches.length);
+    }
+    dd.style.display = 'block';
+  }
+
+  function _policyTargets(pol) {
+    if (Array.isArray(pol.targets))    return pol.targets.filter(Boolean);
+    if (typeof pol.target === 'string' && pol.target) return [pol.target];
+    if (Array.isArray(pol.target))     return pol.target.filter(Boolean);
+    if (Array.isArray(pol.paths))      return pol.paths.map(h => h.target || h.targetAddress || h.destination || h.name).filter(Boolean);
+    if (Array.isArray(pol.networkPaths)) return pol.networkPaths.map(h => h.target || h.targetAddress || h.destination).filter(Boolean);
+    return [];
+  }
+
+  // ── Multi-org accordion ─────────────────────────────────────
+
+  function _teardownAccordions() {
+    if (_confirmedOrgs.length === 0) return;
+    _confirmedOrgs = [];
+    _enrichByOrg = {};
+    _resetChipFields();
+    const mc = document.getElementById('multi-org-container');
+    if (mc) { mc.innerHTML = ''; mc.style.display = 'none'; }
+    document.getElementById('operation-card').style.display = '';
+    document.getElementById('connector-webhook-card').style.display = '';
+    document.getElementById('enrich-wrap').style.display = '';
+  }
+
+  function _buildAccordions(orgs) {
+    _confirmedOrgs = orgs;
+    document.getElementById('operation-card').style.display = 'none';
+    document.getElementById('connector-webhook-card').style.display = 'none';
+    document.getElementById('enrich-wrap').style.display = 'none';
+    const mc = document.getElementById('multi-org-container');
+    mc.innerHTML = `<div class="acc-multi-note">CREATE mode — entering multiple orgs disables PUT. Switch to a single org to use UPDATE mode.</div>`
+      + orgs.map((org, i) => _buildOrgHtml(org, i === 0)).join('');
+    mc.style.display = 'block';
+    orgs.forEach(org => {
+      addHeader('Content-Type', 'application/json', `a${org.id}-`);
+      _fetchOrgEnrichment(org.id);
+    });
+  }
+
+  function _buildFilterCardHtml(sec, p) {
+    const isInc = sec === 'inc';
+    const title = isInc ? 'Include Filters' : 'Exclude Filters';
+    const hint  = isInc
+      ? 'Alarms matching any of these criteria will be forwarded. Leave a field empty to place no restriction on it.'
+      : 'Alarms matching any of these criteria will be suppressed, regardless of include filters.';
+    const sevs = [['CRITICAL','Critical'],['MAJOR','Major'],['MINOR','Minor'],
+                  ['WARNING','Warning'],['CLEARED','Cleared'],['INDETERMINATE','Indet.']];
+    return `<div class="card" style="margin-bottom:0">
+      <div class="card-title">${title}</div>
+      <p class="card-hint">${hint}</p>
+      ${isInc ? `<div id="${p}inc-or-warning" class="field-warn" style="display:none">&#x26a0; Multiple filter types are active. AppNeta applies <strong>OR</strong> logic across filter types &mdash; an alarm is forwarded if it matches <em>any one</em> criterion, not all of them.</div>` : ''}
+      <div class="form-group">
+        <label class="field-label">Severity</label>
+        <div class="check-group">${sevs.map(([v,l]) =>
+          `<label class="check-item"><input type="checkbox" name="${p}${sec}_sev" value="${v}"> ${l}</label>`).join('')}
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="field-label">Noise Filter</label>
+        <div class="check-group">
+          <label class="check-item"><input type="checkbox" name="${p}${sec}_noise" value="FREQUENT"> Frequent only</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="field-label">MP Names</label>
+        <textarea id="${p}${sec}-mp-names" rows="1" placeholder="Type to search&hellip;"></textarea>
+        <div class="field-hint">Glob patterns supported &mdash; type pattern and press &crarr; &nbsp;e.g. <code>edge-*</code> &nbsp;<code>*-gateway</code> &nbsp;<code>?w-core</code></div>
+      </div>
+      <div class="form-group">
+        <label class="field-label">MP Types</label>
+        <textarea id="${p}${sec}-mp-types" rows="1" placeholder="Type to select&hellip;"></textarea>
+        <div class="field-hint">Glob patterns supported &mdash; e.g. <code>* microAppliance</code> &nbsp;<code>*Container</code></div>
+      </div>
+      <div class="form-group">
+        <label class="field-label">Policy Names</label>
+        <textarea id="${p}${sec}-policies" rows="1" placeholder="Type to search&hellip;"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="field-label">Policy Group Names</label>
+        <textarea id="${p}${sec}-groups" rows="1" placeholder="Type to search&hellip;"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="field-label">Tags <span class="hint">(Category:Value, Category, or :Value)</span></label>
+        <textarea id="${p}${sec}-tags" rows="3" placeholder="${isInc ? 'Location:Chicago IL\nCloud:AWS' : 'VPN:OpenVPN\nEnvironment:Test'}"></textarea>
+      </div>
+      <details class="adv">
+        <summary>Advanced</summary>
+        <div class="adv-body">
+          <div class="form-group">
+            <label class="field-label">Targets <span class="hint">(hostnames, IPs, or globs)</span></label>
+            <textarea id="${p}${sec}-targets" rows="1" placeholder="Type to search&hellip;"></textarea>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="field-label">Alarm Rule IDs <span class="hint">(integers &mdash; from AppNeta GUI &rarr; Alarms &rarr; Alarm Rules)</span></label>
+            <textarea id="${p}${sec}-alarm-rules" rows="2"
+                      oninput="checkAlarmRules(this,'${p}${sec}-alarm-rules-warn')"></textarea>
+            <div id="${p}${sec}-alarm-rules-warn" class="field-warn">&#x26a0; Non-integer lines will be ignored</div>
+          </div>
+          <div class="form-group">
+            <label class="field-label">MP IDs <span class="hint">(numeric only)</span></label>
+            <textarea id="${p}${sec}-mp-ids" rows="1" placeholder="Type an ID or name to search&hellip;"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="field-label">Policy IDs <span class="hint">(numeric only)</span></label>
+            <textarea id="${p}${sec}-policy-ids" rows="1" placeholder="Type an ID or name to search&hellip;"></textarea>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="field-label">Policy Group IDs <span class="hint">(numeric only)</span></label>
+            <textarea id="${p}${sec}-group-ids" rows="1" placeholder="Type an ID or name to search&hellip;"></textarea>
+          </div>
+        </div>
+      </details>
+    </div>`;
+  }
+
+  function _buildOrgHtml(org, isFirst) {
+    const p   = `a${org.id}-`;
+    const oid = org.id;
+    return `<div class="org-accordion" id="acc-${oid}">
+      <button class="acc-header" type="button" onclick="toggleAcc(${oid})" aria-expanded="${isFirst}">
+        <span class="acc-chevron">${isFirst ? '&#x25bc;' : '&#x25b6;'}</span>
+        <span class="acc-org-name">${esc(org.name)}</span>
+        <span class="acc-org-id">#${oid}</span>
+        <span class="acc-enrich-status" id="acc-enrich-${oid}">Loading data&hellip;</span>
+      </button>
+      <div class="acc-body${isFirst ? '' : ' acc-body-closed'}" id="acc-body-${oid}">
+        <div class="card" style="margin-top:.75rem;margin-bottom:.75rem">
+          <div class="card-title">Connector</div>
+          <div class="row-2">
+            <div class="form-group">
+              <label class="field-label">Name <span class="req">*</span></label>
+              <input type="text" id="${p}connector-name" placeholder="Alarm Webhook Connector">
+            </div>
+            <div class="form-group">
+              <label class="field-label">Description <span class="hint">(optional)</span></label>
+              <input type="text" id="${p}connector-desc" placeholder="Optional description">
+            </div>
+          </div>
+          <div class="row-2">
+            <div class="form-group">
+              <label class="field-label">Notify On</label>
+              <div class="check-group" style="padding-top:.3rem">
+                <label class="check-item"><input type="checkbox" name="${p}notify_on" value="ALARM_RAISED" checked> Alarm Raised</label>
+                <label class="check-item"><input type="checkbox" name="${p}notify_on" value="ALARM_CLEARED" checked> Alarm Cleared</label>
+              </div>
+            </div>
+            <div class="form-group">
+              <div class="toggle-wrap" style="padding-top:1.3rem">
+                <input type="checkbox" id="${p}connector-enabled" checked>
+                <span>Connector Enabled</span>
+              </div>
+            </div>
+          </div>
+          <div class="section-divider">Webhook Delivery</div>
+          <div class="row-2">
+            <div class="form-group">
+              <label class="field-label">Webhook URL <span class="req">*</span></label>
+              <input type="url" id="${p}wh-url" autocomplete="off" data-1p-ignore data-lpignore="true"
+                     placeholder="https://hooks.example.com/appneta" oninput="checkWhUrl('${p}')">
+              <div id="${p}wh-url-warn" style="display:none;font-size:.75rem;color:#b45309;margin-top:.2rem">
+                &#x26a0; Plain HTTP &mdash; alarm data will be sent unencrypted. Use HTTPS if possible.
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="field-label">Method</label>
+              <select id="${p}wh-method">
+                <option value="POST" selected>POST</option>
+                <option value="GET">GET</option>
+                <option value="PUT">PUT</option>
+                <option value="PATCH">PATCH</option>
+                <option value="DELETE">DELETE</option>
+                <option value="HEAD">HEAD</option>
+              </select>
+            </div>
+          </div>
+          <div class="row-2">
+            <div class="form-group">
+              <label class="field-label">Auth Type</label>
+              <select id="${p}wh-auth-type" onchange="updateAuthFields('${p}')">
+                <option value="NONE" selected>None &mdash; no built-in auth</option>
+                <option value="BASIC">Basic &mdash; username + password</option>
+                <option value="BEARER">Bearer &mdash; Authorization: Bearer &lt;token&gt;</option>
+              </select>
+            </div>
+            <div class="form-group toggle-wrap" style="padding-top:1.4rem">
+              <input type="checkbox" id="${p}wh-ignore-ssl">
+              <span>Ignore SSL Errors</span>
+            </div>
+          </div>
+          <div class="row-2">
+            <div class="form-group auth-field" id="${p}auth-username-wrap">
+              <label class="field-label">Username</label>
+              <input type="text" id="${p}wh-username" autocomplete="off" data-1p-ignore data-lpignore="true"
+                     oninput="checkNoNewlines(this,'${p}wh-username-warn')">
+              <div id="${p}wh-username-warn" class="field-err">&#x26a0; Username must not contain line breaks</div>
+            </div>
+            <div class="form-group auth-field" id="${p}auth-cred-wrap">
+              <label class="field-label" id="${p}auth-cred-label">Token</label>
+              <div class="input-reveal">
+                <input type="password" id="${p}wh-credential" autocomplete="off" data-1p-ignore data-lpignore="true"
+                       oninput="checkNoNewlines(this,'${p}wh-credential-warn')">
+                <button type="button" class="btn-reveal" onclick="toggleReveal('${p}wh-credential',this)">Show</button>
+              </div>
+              <div id="${p}wh-credential-warn" class="field-err">&#x26a0; Token must not contain line breaks</div>
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="field-label">Custom Headers</label>
+            <div id="${p}headers-list"></div>
+            <button type="button" class="btn-add" onclick="addHeader('','','${p}')">+ Add Header</button>
+          </div>
+        </div>
+        <div class="acc-filter-loading" id="${p}filter-loading">Loading org data&hellip;</div>
+        <div class="filter-grid" id="${p}filter-grid" style="display:none">
+          ${_buildFilterCardHtml('inc', p)}
+          ${_buildFilterCardHtml('exc', p)}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function toggleAcc(orgId) {
+    const body = document.getElementById(`acc-body-${orgId}`);
+    const btn  = document.querySelector(`#acc-${orgId} .acc-header`);
+    if (!body) return;
+    const closing = !body.classList.contains('acc-body-closed');
+    body.classList.toggle('acc-body-closed', closing);
+    if (btn) {
+      btn.setAttribute('aria-expanded', String(!closing));
+      const ch = btn.querySelector('.acc-chevron');
+      if (ch) ch.innerHTML = closing ? '&#x25b6;' : '&#x25bc;';
+    }
+  }
+
+  function collectOrgForm(org) {
+    const oid = org.id;
+    const p   = `a${oid}-`;
+    const linesP = id => (document.getElementById(id) ? document.getElementById(id).value : '')
+      .split('\n').map(s => s.trim()).filter(Boolean);
+    const checkedP = name => [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(c => c.value);
+    const authType = document.getElementById(p+'wh-auth-type').value;
+    const headers  = [...document.querySelectorAll(`#${p}headers-list .dyn-row`)]
+      .map(row => ({ key: row.querySelector('.hdr-key').value.trim(), value: row.querySelector('.hdr-val').value.trim() }))
+      .filter(h => h.key);
+    return {
+      api_key:  document.getElementById('api-key').value.trim(),
+      base_url: document.getElementById('base-url').value.trim(),
+      org:      String(oid),
+      connector: {
+        id:          null,
+        name:        document.getElementById(p+'connector-name').value.trim(),
+        description: document.getElementById(p+'connector-desc').value.trim(),
+        enabled:     document.getElementById(p+'connector-enabled').checked,
+      },
+      notify_on: checkedP(p+'notify_on'),
+      include: {
+        severity:                      checkedP(p+'inc_sev'),
+        noise_filter:                  checkedP(p+'inc_noise'),
+        monitoring_point_names:        linesP(p+'inc-mp-names'),
+        monitoring_point_ids:          linesP(p+'inc-mp-ids').map(Number).filter(n => !isNaN(n) && n > 0),
+        monitoring_point_types:        linesP(p+'inc-mp-types'),
+        monitoring_policy_names:       linesP(p+'inc-policies'),
+        monitoring_policy_ids:         linesP(p+'inc-policy-ids').map(Number).filter(n => !isNaN(n) && n > 0),
+        monitoring_policy_group_names: linesP(p+'inc-groups'),
+        monitoring_policy_group_ids:   linesP(p+'inc-group-ids').map(Number).filter(n => !isNaN(n) && n > 0),
+        tags:                          linesP(p+'inc-tags'),
+        targets:                       linesP(p+'inc-targets'),
+        alarm_rule_ids:                linesP(p+'inc-alarm-rules').map(Number).filter(n => !isNaN(n) && n > 0),
+      },
+      exclude: {
+        severity:                      checkedP(p+'exc_sev'),
+        noise_filter:                  checkedP(p+'exc_noise'),
+        monitoring_point_names:        linesP(p+'exc-mp-names'),
+        monitoring_point_ids:          linesP(p+'exc-mp-ids').map(Number).filter(n => !isNaN(n) && n > 0),
+        monitoring_point_types:        linesP(p+'exc-mp-types'),
+        monitoring_policy_names:       linesP(p+'exc-policies'),
+        monitoring_policy_ids:         linesP(p+'exc-policy-ids').map(Number).filter(n => !isNaN(n) && n > 0),
+        monitoring_policy_group_names: linesP(p+'exc-groups'),
+        monitoring_policy_group_ids:   linesP(p+'exc-group-ids').map(Number).filter(n => !isNaN(n) && n > 0),
+        tags:                          linesP(p+'exc-tags'),
+        targets:                       linesP(p+'exc-targets'),
+        alarm_rule_ids:                linesP(p+'exc-alarm-rules').map(Number).filter(n => !isNaN(n) && n > 0),
+      },
+      webhook: {
+        url:               document.getElementById(p+'wh-url').value.trim(),
+        method:            document.getElementById(p+'wh-method').value,
+        ignore_ssl_errors: document.getElementById(p+'wh-ignore-ssl').checked,
+        auth: {
+          type:     authType,
+          username: authType === 'BASIC'  ? document.getElementById(p+'wh-username').value.trim()   : undefined,
+          token:    authType === 'BEARER' ? document.getElementById(p+'wh-credential').value.trim() : undefined,
+          password: authType === 'BASIC'  ? document.getElementById(p+'wh-credential').value.trim() : undefined,
+        },
+        headers,
+      },
+    };
+  }
+
+  async function _fetchOrgEnrichment(orgId) {
+    const apiKey  = document.getElementById('api-key').value.trim();
+    const baseUrl = document.getElementById('base-url').value.trim();
+    const p       = `a${orgId}-`;
+    const statusEl = document.getElementById(`acc-enrich-${orgId}`);
+    const post = path => fetch('/api/lookup', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({base_url: baseUrl, api_key: apiKey, path}),
+    }).then(r => r.json());
+    try {
+      const [mpJson, polJson, grpJson] = await Promise.all([
+        post(`/v4/monitoringPoint?limit=1000&orgId=${orgId}`),
+        post(`/v4/monitoringPolicy?limit=1000&orgId=${orgId}`),
+        post(`/v4/monitoringPolicyGroup?limit=1000&orgId=${orgId}`),
+      ]);
+      const mps  = _toList(mpJson).filter(m => m && m.name);
+      const pols = polJson && !polJson.error ? _toList(polJson).filter(x => x && x.name) : [];
+      const grps = grpJson && !grpJson.error ? _toList(grpJson).filter(x => x && x.name) : [];
+      const mpItems  = mps.map(m  => ({name: m.name,  orgName: null, orgId: null, mpId: m.globalId || m.id || null}));
+      const polItems = pols.map(x => ({name: x.name,  orgName: null, orgId: null, mpId: x.id || null}));
+      const grpItems = grps.map(x => ({name: x.name,  orgName: null, orgId: null, mpId: x.id || null}));
+      const typeSeen = new Set();
+      const mpTypes  = [];
+      mps.forEach(m => {
+        if (!m.type || typeSeen.has(m.type)) return;
+        typeSeen.add(m.type); mpTypes.push({name: m.type, orgName: null, orgId: null});
+      });
+      const tgtSeen = new Set();
+      const targets = [];
+      pols.forEach(pol => {
+        _policyTargets(pol).forEach(t => {
+          if (tgtSeen.has(t)) return;
+          tgtSeen.add(t); targets.push({name: t, orgName: null, orgId: null});
+        });
+      });
+      _enrichByOrg[orgId] = {mpItems, mpTypes, polItems, grpItems, targets};
+      ['mp-names','policies','groups','targets'].forEach(f => {
+        const data = {
+          'mp-names': mpItems, 'policies': polItems,
+          'groups': grpItems, 'targets': targets,
+        }[f];
+        const globOpts = (f === 'mp-names' || f === 'targets') ? {allowGlob: true} : {};
+        _initChipField(`${p}inc-${f}`, data, globOpts);
+        _initChipField(`${p}exc-${f}`, data, globOpts);
+        _chipPairs[`${p}inc-${f}`] = `${p}exc-${f}`;
+        _chipPairs[`${p}exc-${f}`] = `${p}inc-${f}`;
+      });
+      _initMpTypeChipField(`${p}inc-mp-types`, mpTypes);
+      _initMpTypeChipField(`${p}exc-mp-types`, mpTypes);
+      _chipPairs[`${p}inc-mp-types`] = `${p}exc-mp-types`;
+      _chipPairs[`${p}exc-mp-types`] = `${p}inc-mp-types`;
+
+      // Dedicated numeric-only ID fields — same underlying items, ID-first
+      // rendering.
+      const idFieldData = {'mp-ids': mpItems, 'policy-ids': polItems, 'group-ids': grpItems};
+      ['mp-ids', 'policy-ids', 'group-ids'].forEach(f => {
+        _initChipField(`${p}inc-${f}`, idFieldData[f], {idOnly: true});
+        _initChipField(`${p}exc-${f}`, idFieldData[f], {idOnly: true});
+        _chipPairs[`${p}inc-${f}`] = `${p}exc-${f}`;
+        _chipPairs[`${p}exc-${f}`] = `${p}inc-${f}`;
+      });
+      const loadEl = document.getElementById(`${p}filter-loading`);
+      const gridEl = document.getElementById(`${p}filter-grid`);
+      if (loadEl) loadEl.style.display = 'none';
+      if (gridEl) gridEl.style.display = '';
+      if (statusEl) statusEl.textContent = `${mps.length} MPs, ${pols.length} policies`;
+    } catch(e) {
+      if (statusEl) statusEl.textContent = 'Load error';
+      console.warn(`Enrichment error for org ${orgId}:`, e);
+    }
+  }
+
+  function _setOrgStatus(type, msg) {
+    const el = document.getElementById('org-status');
+    el.textContent = msg;
+    el.className = type === 'warn' ? 'status-warn' : 'status-info';
+  }
+
+  function _clearOrgUI() {
+    const orgInput = document.getElementById('org');
+    orgInput.value = '';
+    orgInput.disabled = true;
+    orgInput.placeholder = 'Loading organizations…';
+    orgInput.classList.remove('input-orange', 'input-ok');
+    document.getElementById('org-dropdown').style.display = 'none';
+    const st = document.getElementById('org-status');
+    st.textContent = '';
+    st.className = '';
+  }
+
+  document.addEventListener('click', e => {
+    const orgDd = document.getElementById('org-dropdown');
+    if (orgDd && !orgDd.contains(e.target) && e.target.id !== 'org') orgDd.style.display = 'none';
+    document.querySelectorAll('.chip-dd').forEach(dd => {
+      const wrap = dd.closest('.chip-input-wrap');
+      if (wrap && !wrap.contains(e.target)) dd.style.display = 'none';
+    });
+  });
+
+  // Severity and noise filter mutual exclusion — checking a value on one side unchecks it on the other.
+  // Also triggers the OR-logic warning for include severity/noise changes.
+  document.addEventListener('change', e => {
+    const cb = e.target;
+    if (cb.type !== 'checkbox') return;
+    const name = cb.getAttribute('name') || '';
+    if (!name.includes('_sev') && !name.includes('_noise')) return;
+    if (cb.checked) {
+      const partnerName = name.includes('inc_') ? name.replace('inc_', 'exc_') : name.replace('exc_', 'inc_');
+      if (partnerName !== name) {
+        const val = cb.value;
+        document.querySelectorAll(`input[name="${partnerName}"]`)
+          .forEach(pc => { if (pc.value === val && pc.checked) pc.checked = false; });
+      }
+    }
+    if (name.includes('inc_')) {
+      const prefix = name.slice(0, name.indexOf('inc_'));
+      _checkIncludeOrWarning(prefix);
+    }
+  });
+
+  // Init
+  addHeader('Content-Type', 'application/json');
+</script>
+
+<datalist id="hdr-key-list">
+  <option value="Authorization">
+  <option value="Content-Type">
+  <option value="X-API-Key">
+  <option value="X-Auth-Token">
+</datalist>
+{% endblock %}

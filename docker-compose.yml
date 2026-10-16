@@ -1,0 +1,6 @@
+services:
+  connector:
+    build: .
+    ports:
+      - "8443:8080"
+    restart: unless-stopped

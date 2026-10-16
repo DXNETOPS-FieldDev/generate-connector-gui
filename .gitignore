@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Generated payloads and error files can contain webhook credentials.
+connector_*.json
+*-connector-*.json
+*connector-error*.txt
+connector_errors.txt
+
+# Never commit credentials.
+*.token
+*.secret
+.env
+.env.*
