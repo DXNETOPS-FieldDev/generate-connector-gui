@@ -12,6 +12,7 @@ from flask import Flask
 
 from generate_connector import AppNetaAPIError, AppNetaNetworkError
 from connector_app import connector_bp
+from fixtures import ORGS_MULTI_ROOT
 
 
 def _make_app():
@@ -175,6 +176,32 @@ class TestGenerateRouteAPIErrors(unittest.TestCase):
             MockClient.list_organizations.return_value = _SINGLE_ORG
             resp = self._post()
         self.assertEqual(resp.status_code, 400)
+
+
+class TestMultiHierarchyKeyIsRejected(unittest.TestCase):
+    """A key spanning unrelated hierarchies is refused even when an org is named."""
+
+    def setUp(self):
+        self.client = _make_app().test_client()
+
+    def _post(self, **overrides):
+        with patch("connector_app.AppNetaClient") as MockClient:
+            MockClient.list_organizations.return_value = ORGS_MULTI_ROOT
+            return self.client.post(
+                "/api/connector/generate",
+                data=json.dumps(_valid_body(**overrides)),
+                content_type="application/json",
+            )
+
+    def test_rejected_without_org(self):
+        resp = self._post()
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("superadmin", resp.get_json()["error"].lower())
+
+    def test_rejected_even_with_org_narrowing(self):
+        resp = self._post(org="4160")
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("superadmin", resp.get_json()["error"].lower())
 
 
 class TestGenerateRouteSuccess(unittest.TestCase):

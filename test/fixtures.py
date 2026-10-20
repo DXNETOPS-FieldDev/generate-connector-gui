@@ -1,8 +1,8 @@
-"""Shared test fixtures — org data derived from a real superadmin API response."""
+"""Shared test fixtures — org data derived from a real multi-hierarchy API response."""
 
-# Subset of a real GET /api/v4/organization response from a superadmin key.
+# Subset of a real GET /api/v4/organization response from a multi-hierarchy key.
 # Includes multiple root orgs (parentId: 0) and several child hierarchies.
-ORGS_SUPERADMIN = [
+ORGS_MULTI_ROOT = [
     {"id": 1,     "parentId": 0,    "name": "AppNeta Performance Monitoring"},
     {"id": 4160,  "parentId": 0,    "name": "Carousel Industries"},
     {"id": 4166,  "parentId": 0,    "name": "SaskTel"},

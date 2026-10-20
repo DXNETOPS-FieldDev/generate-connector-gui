@@ -194,6 +194,18 @@ def api_connector_generate():
         current_app.logger.warning("generate-connector: API error listing orgs: %s", exc)
         return jsonify({"error": str(exc)}), 400
 
+    roots = root_orgs(orgs)
+    if len(roots) > 1:
+        return jsonify({
+            "error": (
+                f"Superadmin API key detected: it spans {len(roots)} unrelated organization "
+                f"hierarchies ({len(orgs)} orgs total). Superadmin (account-wide) keys are not "
+                "supported; use a key scoped to one organization."
+            ),
+            "org_tree": build_org_tree(orgs),
+            "org_count": len(orgs),
+        }), 400
+
     if org_spec:
         specs = [s.strip() for s in org_spec.split(",") if s.strip()]
         matched, res_errors = resolve_orgs(orgs, specs)
@@ -207,16 +219,6 @@ def api_connector_generate():
         if not ok:
             return jsonify({"error": msg}), 400
         orgs = matched
-    elif len(root_orgs(orgs)) > 1:
-        roots = root_orgs(orgs)
-        return jsonify({
-            "error": (
-                f"API key spans {len(roots)} unrelated organization hierarchies "
-                f"({len(orgs)} orgs total). Enter an org ID or name in the Org field."
-            ),
-            "org_tree": build_org_tree(orgs),
-            "org_count": len(orgs),
-        }), 400
 
     all_errors: list[str] = []
     payloads: list[dict] = []

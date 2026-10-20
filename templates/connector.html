@@ -748,7 +748,7 @@
       <tr><th>Field</th><th>Required</th><th>Notes</th></tr>
       <tr><td><code>API Key</code></td><td>Yes</td><td>AppNeta API token. Read-only scope is sufficient for CREATE mode. UPDATE mode (GET connector) requires elevated access.</td></tr>
       <tr><td><code>NIS Server URL</code></td><td>Yes</td><td>Must be HTTPS (e.g. <code>https://app-01.pm.appneta.com</code>).</td></tr>
-      <tr><td><code>Org</code></td><td>Conditional</td><td>Org ID or name substring. Comma-separate multiple values to generate one payload per org (e.g. <code>4160, 4275, 6324</code>) — all must share the same root hierarchy. Required for superadmin keys (which span multiple unrelated hierarchies); optional for org-admin keys, which automatically generate one payload per org in their hierarchy when left blank.</td></tr>
+      <tr><td><code>Org</code></td><td>Conditional</td><td>Org ID or name substring. Comma-separate multiple values to generate one payload per org (e.g. <code>4160, 4275, 6324</code>) — all must share the same root hierarchy. Optional for org-admin keys, which automatically generate one payload per org in their hierarchy when left blank.</td></tr>
       <tr><td><code>Connector ID</code></td><td>No</td><td>Leave blank for CREATE (POST). Set to an existing connector's int64 ID for UPDATE (PUT). The API returns this ID after a successful POST.</td></tr>
       <tr><td><code>Notify On</code></td><td>No</td><td>Which events trigger the webhook. Default: both Alarm Raised and Alarm Cleared.</td></tr>
     </table>

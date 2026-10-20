@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.1.2
+
+Consistent API key scope checks.
+
+- An API key that spans several unrelated organization hierarchies is now rejected even when you
+  enter an organization in the Org field, matching the command-line tool. Use a key scoped to one
+  hierarchy.
+- Documentation and help text describing key scope were simplified.
+
 ## v0.1.1
 
 Security hardening and UPDATE-mode fixes.
