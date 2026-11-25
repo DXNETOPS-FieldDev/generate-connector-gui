@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.2.0
+
+New home for releases.
+
+- Releases are now published at https://github.com/DXNETOPS-FieldDev/generate-connector-gui. The earlier
+  v0.1.0, v0.1.1 and v0.1.2 tags are unchanged.
+- No change in behavior. Internal code-quality cleanups only.
+
 ## v0.1.2
 
 Consistent API key scope checks.
