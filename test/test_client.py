@@ -2,6 +2,7 @@
 import json
 import unittest
 import urllib.error
+from typing import ClassVar
 from unittest.mock import MagicMock, patch
 
 from generate_connector import AppNetaAPIError, AppNetaAuthError, AppNetaNetworkError, AppNetaClient, build_payload
@@ -45,9 +46,8 @@ class TestListOrganizations(unittest.TestCase):
         self.assertEqual(result, orgs)
 
     def test_raises_on_empty_list(self):
-        with patch("urllib.request.urlopen", return_value=_make_response([])):
-            with self.assertRaises(AppNetaAPIError):
-                AppNetaClient.list_organizations("https://nis.example.com", "key")
+        with patch("urllib.request.urlopen", return_value=_make_response([])), self.assertRaises(AppNetaAPIError):
+            AppNetaClient.list_organizations("https://nis.example.com", "key")
 
     def test_url_includes_limit_1000(self):
         orgs = [{"id": 1, "parentId": 0, "name": "Acme"}]
@@ -65,15 +65,13 @@ class TestHTTPErrors(unittest.TestCase):
         self.client = _client()
 
     def test_401_raises_auth_error(self):
-        with patch("urllib.request.urlopen", side_effect=_http_error(401, "Unauthorized")):
-            with self.assertRaises(AppNetaAuthError) as ctx:
-                self.client.list_monitoring_points()
+        with patch("urllib.request.urlopen", side_effect=_http_error(401, "Unauthorized")), self.assertRaises(AppNetaAuthError) as ctx:
+            self.client.list_monitoring_points()
         self.assertIn("401", str(ctx.exception))
 
     def test_403_raises_auth_error_when_not_allowed(self):
-        with patch("urllib.request.urlopen", side_effect=_http_error(403, "Forbidden")):
-            with self.assertRaises(AppNetaAuthError) as ctx:
-                self.client.list_monitoring_points()
+        with patch("urllib.request.urlopen", side_effect=_http_error(403, "Forbidden")), self.assertRaises(AppNetaAuthError) as ctx:
+            self.client.list_monitoring_points()
         self.assertIn("403", str(ctx.exception))
 
     def test_403_returns_none_when_allow_403(self):
@@ -82,9 +80,8 @@ class TestHTTPErrors(unittest.TestCase):
         self.assertIsNone(result)
 
     def test_404_raises_api_error_when_not_allowed(self):
-        with patch("urllib.request.urlopen", side_effect=_http_error(404, "Not Found")):
-            with self.assertRaises(AppNetaAPIError):
-                self.client._get("/missing")
+        with patch("urllib.request.urlopen", side_effect=_http_error(404, "Not Found")), self.assertRaises(AppNetaAPIError):
+            self.client._get("/missing")
 
     def test_404_returns_none_when_allow_404(self):
         with patch("urllib.request.urlopen", side_effect=_http_error(404, "Not Found")):
@@ -92,19 +89,16 @@ class TestHTTPErrors(unittest.TestCase):
         self.assertIsNone(result)
 
     def test_500_raises_api_error(self):
-        with patch("urllib.request.urlopen", side_effect=_http_error(500, "Server Error")):
-            with self.assertRaises(AppNetaAPIError):
-                self.client._get("/path")
+        with patch("urllib.request.urlopen", side_effect=_http_error(500, "Server Error")), self.assertRaises(AppNetaAPIError):
+            self.client._get("/path")
 
     def test_url_error_raises_network_error(self):
-        with patch("urllib.request.urlopen", side_effect=urllib.error.URLError("connection refused")):
-            with self.assertRaises(AppNetaNetworkError):
-                self.client._get("/path")
+        with patch("urllib.request.urlopen", side_effect=urllib.error.URLError("connection refused")), self.assertRaises(AppNetaNetworkError):
+            self.client._get("/path")
 
     def test_timeout_raises_network_error(self):
-        with patch("urllib.request.urlopen", side_effect=urllib.error.URLError(TimeoutError())):
-            with self.assertRaises(AppNetaNetworkError) as ctx:
-                self.client._get("/path")
+        with patch("urllib.request.urlopen", side_effect=urllib.error.URLError(TimeoutError())), self.assertRaises(AppNetaNetworkError) as ctx:
+            self.client._get("/path")
         self.assertIn("timed out", str(ctx.exception).lower())
 
 
@@ -185,7 +179,7 @@ class TestGetConnector(unittest.TestCase):
 
 class TestGroupIdsForNames(unittest.TestCase):
 
-    GROUPS = [
+    GROUPS: ClassVar[list] = [
         {"id": 300, "name": "Southwest Desert"},
         {"id": 301, "name": "Canyon Operations"},
     ]
@@ -527,13 +521,17 @@ if __name__ == "__main__":
 class TestNoRedirect(unittest.TestCase):
 
     def test_redirect_is_refused_and_key_not_forwarded(self):
-        import http.server, threading, urllib.request
+        import http.server
+        import threading
+        import urllib.request
         seen = []
 
         class Target(http.server.BaseHTTPRequestHandler):
             def do_GET(self):
                 seen.append(self.headers.get("Authorization"))
-                self.send_response(200); self.end_headers(); self.wfile.write(b"{}")
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b"{}")
             def log_message(self, *a): pass
 
         target = http.server.HTTPServer(("127.0.0.1", 0), Target)
@@ -572,13 +570,17 @@ class TestUpstreamOddities(unittest.TestCase):
             c._get("/v4/organization")
 
     def test_non_json_200_body(self):
-        resp = MagicMock(); resp.read.return_value = b"<html>not json</html>"
-        resp.__enter__ = lambda s: s; resp.__exit__ = MagicMock(return_value=False)
+        resp = MagicMock()
+        resp.read.return_value = b"<html>not json</html>"
+        resp.__enter__ = lambda s: s
+        resp.__exit__ = MagicMock(return_value=False)
         self._fail(return_value=resp)
 
     def test_timeout_while_reading_body(self):
-        resp = MagicMock(); resp.read.side_effect = TimeoutError("slow")
-        resp.__enter__ = lambda s: s; resp.__exit__ = MagicMock(return_value=False)
+        resp = MagicMock()
+        resp.read.side_effect = TimeoutError("slow")
+        resp.__enter__ = lambda s: s
+        resp.__exit__ = MagicMock(return_value=False)
         self._fail(return_value=resp)
 
     def test_invalid_url_characters(self):

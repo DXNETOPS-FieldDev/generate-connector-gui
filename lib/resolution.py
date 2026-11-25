@@ -1,6 +1,11 @@
 """Name/ID resolution helpers — monitoring points, policies, groups, tags, MP types."""
 
+from typing import TYPE_CHECKING
+
 from constants import _GLOB_CHARS, _MP_TYPE_ALIASES
+
+if TYPE_CHECKING:
+    from client import AppNetaClient
 
 
 def is_numeric(value: str) -> bool:

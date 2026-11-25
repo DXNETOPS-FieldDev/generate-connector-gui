@@ -1,5 +1,6 @@
 """Tests for _remove_contradictions, merge_with_existing, and diff_connector."""
 import unittest
+from typing import ClassVar
 
 import generate_connector as gc
 
@@ -96,7 +97,7 @@ class TestRemoveContradictions(unittest.TestCase):
 
 class TestMergeWithExisting(unittest.TestCase):
 
-    EXISTING = {
+    EXISTING: ClassVar[dict] = {
         "name": "Old Name",
         "enabled": True,
         "description": "Old description",
@@ -171,7 +172,7 @@ class TestMergeWithExisting(unittest.TestCase):
 
     # ── regressions: UPDATE must be able to drop auth / headers / SSL bypass ──
 
-    _OLD_SUB = {"id": 7, "type": "WEBHOOK", "url": "https://old.example.com",
+    _OLD_SUB: ClassVar[dict] = {"id": 7, "type": "WEBHOOK", "url": "https://old.example.com",
                 "auth": {"type": "BASIC", "username": "u", "password": "********"},
                 "headers": [{"key": "X-Secret", "value": "********"}],
                 "ignoreSSLErrors": True}
@@ -210,31 +211,31 @@ class TestDiffConnector(unittest.TestCase):
         current  = {"name": "Old"}
         proposed = {"name": "New"}
         lines = gc.diff_connector(current, proposed)
-        self.assertTrue(any("name" in l for l in lines))
+        self.assertTrue(any("name" in ln for ln in lines))
 
     def test_enabled_change_detected(self):
         current  = {"name": "X", "enabled": True}
         proposed = {"name": "X", "enabled": False}
         lines = gc.diff_connector(current, proposed)
-        self.assertTrue(any("enabled" in l for l in lines))
+        self.assertTrue(any("enabled" in ln for ln in lines))
 
     def test_new_description_marked_as_added(self):
         current  = {"name": "X"}
         proposed = {"name": "X", "description": "New desc"}
         lines = gc.diff_connector(current, proposed)
-        self.assertTrue(any("+" in l for l in lines))
+        self.assertTrue(any("+" in ln for ln in lines))
 
     def test_removed_field_marked_as_removed(self):
         current  = {"name": "X", "description": "Old desc"}
         proposed = {"name": "X"}
         lines = gc.diff_connector(current, proposed)
-        self.assertTrue(any("-" in l for l in lines))
+        self.assertTrue(any("-" in ln for ln in lines))
 
     def test_severity_change_in_include_detected(self):
         current  = {"name": "X", "include": {"severity": ["CRITICAL"]}}
         proposed = {"name": "X", "include": {"severity": ["MAJOR"]}}
         lines = gc.diff_connector(current, proposed)
-        self.assertTrue(any("severity" in l for l in lines))
+        self.assertTrue(any("severity" in ln for ln in lines))
 
     def test_no_diff_when_include_unchanged(self):
         p = {"name": "X", "include": {"severity": ["CRITICAL"]}, "notifyOn": ["ALARM_RAISED"]}

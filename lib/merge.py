@@ -1,9 +1,12 @@
 """Connector diff and merge helpers for UPDATE (PUT) mode."""
 
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from payload import _remove_contradictions
+
+if TYPE_CHECKING:
+    from client import AppNetaClient
 
 
 def _diff_field(path: str, current: Any, proposed: Any, lines: list[str]) -> None:

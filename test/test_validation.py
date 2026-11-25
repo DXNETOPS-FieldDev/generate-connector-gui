@@ -1,5 +1,6 @@
 """Tests for validate_request() — input validation before any API calls."""
 import unittest
+from typing import ClassVar
 
 from generate_connector import validate_request
 
@@ -190,7 +191,7 @@ class TestValidateAlarmRuleIds(unittest.TestCase):
 
 class TestValidateListFields(unittest.TestCase):
 
-    FIELDS = [
+    FIELDS: ClassVar[list] = [
         "monitoring_point_names",
         "monitoring_point_types",
         "monitoring_policy_names",
@@ -504,14 +505,14 @@ class TestReviewHardening(unittest.TestCase):
     def test_header_name_must_be_an_rfc7230_token(self):
         for bad in ("X(", "X@Y", "Xé", "X\x7f"):
             with self.subTest(bad):
-                errs = self._errs(lambda d: d["webhook"].update(headers=[{"key": bad, "value": "v"}]))
+                errs = self._errs(lambda d, bad=bad: d["webhook"].update(headers=[{"key": bad, "value": "v"}]))
                 self.assertTrue(any("headers[0].key" in e for e in errs), errs)
         self.assertEqual(self._errs(lambda d: d["webhook"].update(headers=[{"key": "X-Api_Key.1", "value": "v"}])), [])
 
     def test_header_value_must_be_a_string_and_present(self):
         for bad in ({"key": "X-A", "value": 5}, {"key": "X-A"}):
             with self.subTest(bad):
-                errs = self._errs(lambda d: d["webhook"].update(headers=[bad]))
+                errs = self._errs(lambda d, bad=bad: d["webhook"].update(headers=[bad]))
                 self.assertTrue(any("headers[0].value" in e for e in errs), errs)
 
     def test_empty_notify_on_is_rejected_but_absent_is_fine(self):
@@ -521,7 +522,7 @@ class TestReviewHardening(unittest.TestCase):
     def test_connector_id_must_be_a_positive_integer(self):
         for bad in (-5, 0, True, 1.5, {}, [1]):
             with self.subTest(bad):
-                errs = self._errs(lambda d: d["connector"].update(id=bad))
+                errs = self._errs(lambda d, bad=bad: d["connector"].update(id=bad))
                 self.assertTrue(any("connector.id" in e for e in errs), errs)
         self.assertEqual(self._errs(lambda d: d["connector"].update(id=123)), [])
         self.assertEqual(self._errs(lambda d: d["connector"].update(id=None)), [])

@@ -64,7 +64,7 @@ def _validate_base_url(url: str) -> None:
     try:
         port = parsed.port
     except ValueError:
-        raise ValueError("base_url has an invalid port")
+        raise ValueError("base_url has an invalid port") from None
     if port is not None and not 1 <= port <= 65535:
         raise ValueError("base_url has an invalid port")
 
@@ -117,7 +117,7 @@ class AppNetaClient:
                 return None
             if e.code == 401:
                 log.warning("AppNeta API 401 Unauthorized: %s", url)
-                raise AppNetaAuthError("401 Unauthorized — check the API key.")
+                raise AppNetaAuthError("401 Unauthorized — check the API key.") from e
             if e.code == 403:
                 if allow_403:
                     return None
@@ -126,23 +126,23 @@ class AppNetaClient:
                     "403 Forbidden — API key does not have access to this endpoint. "
                     "Check that the key is scoped to the correct organization and has "
                     "at least read access to the required resources."
-                )
+                ) from e
             err_body = e.read().decode(errors="replace")
             log.warning("AppNeta API HTTP %d: %s — %s", e.code, url, err_body[:200])
-            raise AppNetaAPIError(f"HTTP {e.code} error from AppNeta API.")
+            raise AppNetaAPIError(f"HTTP {e.code} error from AppNeta API.") from e
         except (ValueError, http.client.HTTPException) as e:
             # Non-JSON 200 body, or control characters that http.client refuses to send.
             log.warning("AppNeta API unusable response: %s — %s", url, type(e).__name__)
-            raise AppNetaAPIError("Unexpected response from AppNeta API.")
+            raise AppNetaAPIError("Unexpected response from AppNeta API.") from e
         except TimeoutError:
             log.warning("AppNeta API timeout: %s", url)
-            raise AppNetaNetworkError("Request timed out reaching AppNeta server.")
+            raise AppNetaNetworkError("Request timed out reaching AppNeta server.") from None
         except urllib.error.URLError as e:
             if isinstance(e.reason, TimeoutError):
                 log.warning("AppNeta API timeout: %s", url)
-                raise AppNetaNetworkError("Request timed out reaching AppNeta server.")
+                raise AppNetaNetworkError("Request timed out reaching AppNeta server.") from e
             log.warning("AppNeta API network error: %s — %s", url, e.reason)
-            raise AppNetaNetworkError("Network error reaching AppNeta server.")
+            raise AppNetaNetworkError("Network error reaching AppNeta server.") from e
 
     def _get(self, path: str, allow_404: bool = False, allow_403: bool = False) -> Any:
         return self._request("GET", path, allow_404=allow_404, allow_403=allow_403)

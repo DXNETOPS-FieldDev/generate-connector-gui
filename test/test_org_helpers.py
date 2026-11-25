@@ -54,7 +54,7 @@ class TestFindOrgRoot(unittest.TestCase):
         self.assertEqual(gc.find_org_root(6230,  org_by_id, id_set), 4166)  # SaskTel ICT PS → SaskTel
 
     def test_grandchild_walks_to_root(self):
-        orgs = list(ORGS_MULTI_ROOT) + [{"id": 99999, "parentId": 4275, "name": "Grandchild"}]
+        orgs = [*list(ORGS_MULTI_ROOT), {"id": 99999, "parentId": 4275, "name": "Grandchild"}]
         org_by_id, id_set = self._lookup(orgs)
         self.assertEqual(gc.find_org_root(99999, org_by_id, id_set), 4160)
 
@@ -97,12 +97,12 @@ class TestValidateSameHierarchy(unittest.TestCase):
 
     def test_children_from_different_roots_rejected(self):
         selected = [o for o in ORGS_MULTI_ROOT if o["id"] in {4275, 6230}]  # Carousel child + SaskTel child
-        ok, msg = gc.validate_same_hierarchy(selected, ORGS_MULTI_ROOT)
+        ok, _msg = gc.validate_same_hierarchy(selected, ORGS_MULTI_ROOT)
         self.assertFalse(ok)
 
     def test_parent_plus_child_from_another_hierarchy_rejected(self):
         selected = [o for o in ORGS_MULTI_ROOT if o["id"] in {4160, 4213}]  # Carousel + Columbia child
-        ok, msg = gc.validate_same_hierarchy(selected, ORGS_MULTI_ROOT)
+        ok, _msg = gc.validate_same_hierarchy(selected, ORGS_MULTI_ROOT)
         self.assertFalse(ok)
 
     def test_error_message_names_both_roots(self):
@@ -127,24 +127,24 @@ class TestResolveOrgs(unittest.TestCase):
         self.assertEqual(errors, [])
 
     def test_numeric_string_treated_as_id(self):
-        matched, errors = gc.resolve_orgs(ORGS_MULTI_ROOT, ["4160"])
+        matched, _errors = gc.resolve_orgs(ORGS_MULTI_ROOT, ["4160"])
         self.assertEqual(len(matched), 1)
         self.assertEqual(matched[0]["id"], 4160)
 
     def test_comma_split_ids(self):
-        specs = [s.strip() for s in "4160,4275".split(",")]
+        specs = [s.strip() for s in ["4160", "4275"]]
         matched, errors = gc.resolve_orgs(ORGS_MULTI_ROOT, specs)
         self.assertEqual({o["id"] for o in matched}, {4160, 4275})
         self.assertEqual(errors, [])
 
     def test_name_substring_case_insensitive(self):
-        matched, errors = gc.resolve_orgs(ORGS_MULTI_ROOT, ["carousel"])
+        matched, _errors = gc.resolve_orgs(ORGS_MULTI_ROOT, ["carousel"])
         self.assertEqual(len(matched), 1)
         self.assertEqual(matched[0]["id"], 4160)
 
     def test_name_substring_unique_match(self):
         # "Closter" uniquely matches "Closter BOE" (id=4207)
-        matched, errors = gc.resolve_orgs(ORGS_MULTI_ROOT, ["Closter"])
+        matched, _errors = gc.resolve_orgs(ORGS_MULTI_ROOT, ["Closter"])
         self.assertEqual(len(matched), 1)
         self.assertEqual(matched[0]["id"], 4207)
 

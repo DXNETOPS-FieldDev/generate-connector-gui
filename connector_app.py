@@ -104,7 +104,7 @@ def _bad_field(exc):
     return jsonify({"error": str(exc)}), 400
 
 
-@connector_bp.errorhandler(Exception)
+@connector_bp.errorhandler(Exception)  # pyright: ignore[reportArgumentType]  (HTTPException.code is int | None; every real HTTPException has one)
 def _unexpected(exc):
     if isinstance(exc, HTTPException):
         return jsonify({"error": exc.description}), exc.code

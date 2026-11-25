@@ -6,7 +6,8 @@ All upstream API calls are patched at the connector_app module boundary.
 
 import json
 import unittest
-from unittest.mock import MagicMock, patch
+from typing import ClassVar
+from unittest.mock import patch
 
 from flask import Flask
 
@@ -300,7 +301,7 @@ class TestConnectorDetailPreservesMask(unittest.TestCase):
             content_type="application/json",
         )
 
-    _MASKED = {
+    _MASKED: ClassVar[dict] = {
         "id": 7,
         "name": "Existing Connector",
         "connectors": [{

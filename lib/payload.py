@@ -1,8 +1,11 @@
 """Alarm connector JSON payload builder."""
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from resolution import _has_glob, is_numeric, resolve_mp_types, resolve_tags, resolve_to_ids
+
+if TYPE_CHECKING:
+    from client import AppNetaClient
 
 
 def build_filter(section: dict, client: "AppNetaClient", errors: list) -> dict:
@@ -214,9 +217,8 @@ def build_payload(config: dict, client: "AppNetaClient", errors: list) -> dict:
                 auth_block["username"] = auth["username"]
             if auth.get("password"):
                 auth_block["password"] = auth["password"]
-        elif auth_type == "BEARER":
-            if auth.get("token"):
-                auth_block["token"] = auth["token"]
+        elif auth_type == "BEARER" and auth.get("token"):
+            auth_block["token"] = auth["token"]
         connector_entry["auth"] = auth_block
     if webhook.get("ignore_ssl_errors"):
         connector_entry["ignoreSSLErrors"] = True

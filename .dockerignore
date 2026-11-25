@@ -16,3 +16,10 @@ docker-compose.yml
 release/
 *.pem
 *.key
+tools/
+requirements-dev.*
+ruff.toml
+pyrightconfig.json
+.coveragerc
+.coverage
+.trivyignore
